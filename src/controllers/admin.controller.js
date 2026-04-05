@@ -88,10 +88,8 @@ const updateUserRole = async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     if (role) user.role = role;
-    if (department) {
-       user.department = department;
-    } else if (user.role !== 'admin') {
-       user.department = undefined;
+    if (department !== undefined) {
+       user.department = department === null ? undefined : department;
     }
     await user.save();
     return res.status(200).json({ success: true, user });
