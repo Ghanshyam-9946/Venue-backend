@@ -286,9 +286,13 @@ const updateRequestStatus = async (req, res) => {
         ? `Your booking ${status} by head` 
         : `Your booking ${status} by HOD of department`;
       reason = reason ? `${prefix}. Reason: ${reason}` : prefix;
+    } else if (status === "approved") {
+      reason = currentUser.role === "superadmin" 
+        ? "Approved by head" 
+        : "Approved by HOD of department";
     }
 
-    if (reason && (status === "rejected" || status === "revoked")) {
+    if (reason) {
       request.reason = reason;
     }
     await request.save();
@@ -436,9 +440,13 @@ const updateBatchStatus = async (req, res) => {
           ? `Your booking ${status} by head`
           : `Your booking ${status} by HOD of department`;
         finalReason = reason ? `${prefix}. Reason: ${reason}` : prefix;
+      } else if (status === "approved") {
+        finalReason = currentUser.role === "superadmin" 
+          ? "Approved by head" 
+          : "Approved by HOD of department";
       }
 
-      if (finalReason && (status === "rejected" || status === "revoked")) {
+      if (finalReason) {
         request.reason = finalReason;
       }
       await request.save();
