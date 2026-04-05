@@ -73,12 +73,11 @@ const createBooking = async(req,res)=>{
         }
 
         const batchId = crypto.randomBytes(8).toString("hex");
+        const venueNames = existingVenues.map(v => v.name);
 
-        // 2. Create bookings and notify admins
+        // 2. Create bookings
         for (let i = 0; i < targetVenues.length; i++) {
             const venueId = targetVenues[i];
-            const existingVenue = existingVenues[i];
-
             for (const tSlot of targetTimeSlots) {
                 const booking = await bookingModel.create({
                     faculty: req.user.userId,
@@ -89,28 +88,29 @@ const createBooking = async(req,res)=>{
                     requirements: requirements || "",
                     batchId
                 });
-                
                 createdBookings.push(booking);
-
-                // Notify admins (superadmins + specific department admins)
-                const admins = await userModel.find({ 
-                    $or: [
-                        { role: "superadmin" },
-                        { role: "admin", department: existingVenue.department }
-                    ]
-                }).select("email");
-                
-                if (admins.length > 0) {
-                    const adminEmails = admins.map(admin => admin.email);
-                    await emailService.sendNewBookingAdminNotification(
-                        adminEmails,
-                        facultyName,
-                        existingVenue.name,
-                        dateString,
-                        tSlot
-                    );
-                }
             }
+        }
+
+        // 3. Notify admins (One email per batch)
+        const adminQuery = {
+            $or: [
+                { role: "superadmin" },
+                { role: "admin", department: { $in: existingVenues.map(v => v.department) } }
+            ]
+        };
+        
+        const admins = await userModel.find(adminQuery).select("email");
+        
+        if (admins.length > 0) {
+            const adminEmails = admins.map(admin => admin.email);
+            await emailService.sendNewBookingAdminNotification(
+                adminEmails,
+                facultyName,
+                venueNames,
+                dateString,
+                targetTimeSlots.join(", ")
+            );
         }
 
         return res.status(201).json({

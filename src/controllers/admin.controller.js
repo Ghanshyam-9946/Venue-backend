@@ -26,6 +26,9 @@ const registerFaculty = async (req, res) => {
         isFirstLogin: true
     });
 
+    // Send registration email
+    await emailService.sendRegistrationEmail(user.email, user.name);
+
     return res.status(201).json({
       success: true,
       message: "Faculty created successfully",

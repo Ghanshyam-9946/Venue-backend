@@ -29,6 +29,9 @@ async function userRegisterController(req, res) {
             role: "faculty",
             isFirstLogin: false 
         });
+
+        // Send registration email
+        await emailService.sendRegistrationEmail(user.email, user.name);
         
         return res.status(201).json({
             success: true,
