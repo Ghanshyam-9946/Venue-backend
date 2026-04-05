@@ -1,0 +1,49 @@
+const mongoose = require('mongoose')
+
+const bookingSchema = new mongoose.Schema({
+    faculty: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+    },
+    venue: {
+         type: mongoose.Schema.Types.ObjectId,
+        ref: "venue",
+        required: true
+    },
+    date:{
+        type: Date,
+        required :true
+    },
+    timeSlot: {
+        type: String,
+        required: true
+    },
+    purpose: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    requirements: {
+        type: String,
+        default: ""
+    },
+    batchId: {
+        type: String,
+        default: null
+    },
+    status:{
+      type: String,
+      enum: ["pending", "approved", "rejected", "revoked"],
+      default: "pending"
+    },
+    reason: {
+      type: String,
+      default: ""
+    }
+
+},{timestamps:true});
+
+const bookingModel = mongoose.model("Booking", bookingSchema)
+
+module.exports = bookingModel;
