@@ -7,7 +7,7 @@ const bookingRoutes = require("./routes/booking.route");
 
 const app = express()
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true })); // Vite's default dev port or production url
+app.use(cors({ origin: process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app', credentials: true })); // Frontend production url
 app.use(cookieParser());
 app.use(express.json())
 
