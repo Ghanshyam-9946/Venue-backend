@@ -14,8 +14,6 @@ router.post('/send-otp', authController.sendOTPController);
 
 router.post('/register', authController.userRegisterController);
 
-router.post('/change-first-password', authMiddleware, authController.changeFirstTimePasswordController);
-
 router.post('/logout', authController.userLogoutController)
 
 router.post('/forgot-password', authController.forgotPasswordController)
