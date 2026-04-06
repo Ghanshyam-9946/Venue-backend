@@ -63,41 +63,48 @@ async function sendOTPController(req, res) {
       return res.status(400).json({ success: false, message: "Email is required" });
     }
 
-    // Temporarily disabled domain check for testing
-    // if (!email.endsWith("@sistec.ac.in")) {
-    //   return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are allowed" });
-    // }
+    // Check environment variables
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.error("❌ SMTP credentials missing in environment variables!");
+      return res.status(500).json({ success: false, message: "Server configuration error: SMTP credentials missing" });
+    }
 
     const isExist = await userModel.findOne({ email });
     if (isExist) {
-      return res.status(422).json({ success: false, message: "Email already exists" });
+      return res.status(422).json({ success: false, message: "Email already registered. Please login." });
     }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     console.log("Generated OTP for", email, ":", otp);
 
-    // Remove any existing OTP for this email
-    await otpModel.deleteMany({ email });
-
-    // Save new OTP
-    await otpModel.create({ email, otp });
+    // Save to DB
+    try {
+      await otpModel.deleteMany({ email });
+      await otpModel.create({ email, otp });
+    } catch (dbError) {
+      console.error("❌ Database error during OTP save:", dbError.message);
+      return res.status(500).json({ success: false, message: "Database error: " + dbError.message });
+    }
 
     // Send OTP email
     console.log("Attempting to send OTP email to:", email);
-    const emailSent = await emailService.sendOTPEmail(email, otp);
-
-    if (!emailSent) {
-      console.error("Failed to send OTP email to:", email);
-      return res.status(500).json({ success: false, message: "Failed to send OTP email. Please try again later." });
+    try {
+      const emailSent = await emailService.sendOTPEmail(email, otp);
+      if (!emailSent) {
+        return res.status(500).json({ success: false, message: "Failed to send OTP email. Possible SMTP block." });
+      }
+    } catch (emailError) {
+      console.error("❌ SMTP Send error:", emailError.message);
+      return res.status(500).json({ success: false, message: "Email service error: " + emailError.message });
     }
 
     console.log("OTP email sent successfully to:", email);
     return res.status(200).json({ success: true, message: "OTP sent to email successfully" });
 
   } catch (error) {
-    console.log("SEND OTP ERROR", error);
-    return res.status(500).json({ success: false, message: "Something went wrong" });
+    console.log("SEND OTP GLOBAL ERROR", error);
+    return res.status(500).json({ success: false, message: "Global error: " + error.message });
   }
 }
 
