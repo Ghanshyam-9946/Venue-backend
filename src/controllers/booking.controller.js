@@ -200,20 +200,22 @@ const checkAndUpdateBookingStatus = async (booking) => {
             await booking.save();
         }
 
-        const now = new Date();
-        const bookingDay = new Date(booking.date);
+        const bookingDate = new Date(booking.date);
+        const endHour = Math.floor(booking.endTime / 60);
+        const endMinute = booking.endTime % 60;
         
-        // Year, month, day from booking
-        // Hours, minutes from endTime
-        const endTimeDate = new Date(
-            bookingDay.getFullYear(),
-            bookingDay.getMonth(),
-            bookingDay.getDate(),
-            Math.floor(booking.endTime / 60),
-            booking.endTime % 60
-        );
+        const localBookingEndTime = new Date(Date.UTC(
+            bookingDate.getUTCFullYear(),
+            bookingDate.getUTCMonth(),
+            bookingDate.getUTCDate(),
+            endHour,
+            endMinute
+        ));
 
-        if (now > endTimeDate) {
+        const now = new Date();
+        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+
+        if (istNow.getTime() > localBookingEndTime.getTime()) {
             booking.status = "completed";
             await booking.save();
             console.log(`Booking ${booking._id} marked as completed.`);
