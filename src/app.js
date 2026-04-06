@@ -11,6 +11,10 @@ let frontendUrl = (process.env.FRONTEND_URL || 'https://venue-frontend-indol.ver
 if (frontendUrl.endsWith('/')) {
     frontendUrl = frontendUrl.slice(0, -1);
 }
+// Ensure it has a protocol
+if (!frontendUrl.startsWith('http://') && !frontendUrl.startsWith('https://')) {
+    frontendUrl = 'https://' + frontendUrl;
+}
 app.use(cors({ origin: frontendUrl, credentials: true })); // Frontend production url
 app.use(cookieParser());
 app.use(express.json())
