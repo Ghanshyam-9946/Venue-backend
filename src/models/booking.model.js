@@ -19,6 +19,14 @@ const bookingSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    startTime: {
+        type: Number, // Minutes from midnight
+        required: true
+    },
+    endTime: {
+        type: Number, // Minutes from midnight
+        required: true
+    },
     purpose: {
         type: String,
         required: true,

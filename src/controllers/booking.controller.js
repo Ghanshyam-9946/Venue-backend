@@ -3,6 +3,27 @@ const venueModel = require("../models/venue.model")
 const userModel = require("../models/user.model")
 const emailService = require("../services/email.service")
 const crypto = require("crypto");
+const mongoose = require("mongoose");
+
+// Helper to convert "09:30 AM" to minutes from midnight
+const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [time, ampm] = timeStr.trim().split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+    if (ampm === "PM" && hours < 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+};
+
+// Helper to parse "09:00 AM - 11:00 AM" or "Custom: ..."
+const parseRange = (timeSlot) => {
+    const cleanSlot = timeSlot.replace("Custom: ", "");
+    const [startStr, endStr] = cleanSlot.split(" - ");
+    return {
+        start: parseTimeToMinutes(startStr),
+        end: parseTimeToMinutes(endStr)
+    };
+};
 
 const createBooking = async(req,res)=>{
     try{
@@ -44,17 +65,22 @@ const createBooking = async(req,res)=>{
             };
             
             for (const tSlot of targetTimeSlots) {
+                const { start, end } = parseRange(tSlot);
+                
+                // Check for overlapping bookings
                 const conflict = await bookingModel.findOne({
                     venue: venueId,
                     date: date,
-                    timeSlot: tSlot,
-                    status: "approved"
+                    status: { $in: ["approved", "pending"] }, // Also check pending to be safe
+                    $or: [
+                        { startTime: { $lt: end }, endTime: { $gt: start } }
+                    ]
                 });
 
                 if (conflict) {
                     return res.status(400).json({
                         success: false,
-                        message: `Venue ${existingVenue.name} is already booked for the time slot ${tSlot}.`
+                        message: `Venue ${existingVenue.name} has a conflicting booking (${conflict.timeSlot}) for the requested time ${tSlot}.`
                     });
                 }
             }
@@ -79,11 +105,14 @@ const createBooking = async(req,res)=>{
         for (let i = 0; i < targetVenues.length; i++) {
             const venueId = targetVenues[i];
             for (const tSlot of targetTimeSlots) {
+                const { start, end } = parseRange(tSlot);
                 const booking = await bookingModel.create({
                     faculty: req.user.userId,
                     venue: venueId,
                     date,
                     timeSlot: tSlot,
+                    startTime: start,
+                    endTime: end,
                     purpose,
                     requirements: requirements || "",
                     batchId
@@ -158,22 +187,10 @@ const checkAndUpdateBookingStatus = async (booking) => {
     if (booking.status !== "approved") return booking;
 
     try {
-        const parts = booking.timeSlot.split(' - ');
-        if (parts.length < 2) return booking;
-        
-        let endTimeStr = parts[1];
-        if (booking.timeSlot.startsWith('Custom: ')) {
-            // "Custom: 09:00 AM - 11:00 AM" -> parts[1] is "11:00 AM"
-            endTimeStr = parts[1];
-        }
-
-        const [time, ampm] = endTimeStr.split(' ');
-        let [hours, minutes] = time.split(':').map(Number);
-        
-        if (ampm === 'PM' && hours < 12) hours += 12;
-        if (ampm === 'AM' && hours === 12) hours = 0;
-
         const bookingDate = new Date(booking.date);
+        const hours = Math.floor(booking.endTime / 60);
+        const minutes = booking.endTime % 60;
+        
         bookingDate.setHours(hours, minutes, 0, 0);
 
         if (Date.now() > bookingDate.getTime()) {
