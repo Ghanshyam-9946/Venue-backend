@@ -154,6 +154,38 @@ const getBookedSlots = async (req, res) => {
     }
 }
 
+const checkAndUpdateBookingStatus = async (booking) => {
+    if (booking.status !== "approved") return booking;
+
+    try {
+        const parts = booking.timeSlot.split(' - ');
+        if (parts.length < 2) return booking;
+        
+        let endTimeStr = parts[1];
+        if (booking.timeSlot.startsWith('Custom: ')) {
+            // "Custom: 09:00 AM - 11:00 AM" -> parts[1] is "11:00 AM"
+            endTimeStr = parts[1];
+        }
+
+        const [time, ampm] = endTimeStr.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+
+        const bookingDate = new Date(booking.date);
+        bookingDate.setHours(hours, minutes, 0, 0);
+
+        if (Date.now() > bookingDate.getTime()) {
+            booking.status = "completed";
+            await booking.save();
+        }
+    } catch (e) {
+        console.error("Error checking booking status:", e);
+    }
+    return booking;
+};
+
 const getMyBookings = async (req, res) => {
   try {
     const bookings = await bookingModel
@@ -161,10 +193,13 @@ const getMyBookings = async (req, res) => {
       .populate("venue", "name location")
       .sort({ createdAt: -1 });
 
+    // Update statuses on the fly for better UX
+    const updatedBookings = await Promise.all(bookings.map(checkAndUpdateBookingStatus));
+
     return res.status(200).json({
       success: true,
-      count: bookings.length,
-      bookings
+      count: updatedBookings.length,
+      bookings: updatedBookings
     });
 
   } catch (error) {

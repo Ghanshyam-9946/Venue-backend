@@ -213,6 +213,35 @@ const getSingleVenue = async (req, res) => {
   }
 };
 
+const checkAndUpdateBookingStatus = async (booking) => {
+    if (booking.status !== "approved") return booking;
+
+    try {
+        const parts = booking.timeSlot.split(' - ');
+        if (parts.length < 2) return booking;
+        
+        // Handle "Custom: 09:00 AM - 10:00 AM" or "09:00 AM - 11:00 AM"
+        let endTimePart = parts[1];
+        
+        const [time, ampm] = endTimePart.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+
+        const bookingDate = new Date(booking.date);
+        bookingDate.setHours(hours, minutes, 0, 0);
+
+        if (Date.now() > bookingDate.getTime()) {
+            booking.status = "completed";
+            await booking.save();
+        }
+    } catch (e) {
+        console.error("Error checking booking status:", e);
+    }
+    return booking;
+};
+
 const getAllRequests = async (req, res) => {
   try {
     const currentUser = await userModel.findById(req.user.userId);
@@ -229,10 +258,13 @@ const getAllRequests = async (req, res) => {
       requests = requests.filter(r => r.venue && r.venue.department && r.venue.department._id.toString() === currentUser.department?.toString());
     }
 
+    // Dynamic status check
+    const updatedRequests = await Promise.all(requests.map(checkAndUpdateBookingStatus));
+
     return res.status(200).json({
       success: true,
-      count: requests.length,
-      requests
+      count: updatedRequests.length,
+      requests: updatedRequests
     });
 
   } catch (error) {
@@ -349,7 +381,7 @@ const getDepartmentHistory = async (req, res) => {
     const currentUser = await userModel.findById(req.user.userId);
 
     const bookings = await bookingModel.find({
-      status: "approved",
+      status: { $in: ["approved", "completed"] },
       date: { $gte: start, $lte: end }
     })
     .populate({ path: "faculty", populate: { path: "department" } })
@@ -524,11 +556,14 @@ const getAllHistoryStatement = async (req, res) => {
     } else if (currentUser.role === 'superadmin' && departmentId) {
       bookings = bookings.filter(b => b.venue && b.venue.department && b.venue.department._id.toString() === departmentId);
     }
+
+    // Dynamic status check
+    const updatedBookings = await Promise.all(bookings.map(checkAndUpdateBookingStatus));
     
     return res.status(200).json({
       success: true,
-      count: bookings.length,
-      history: bookings
+      count: updatedBookings.length,
+      history: updatedBookings
     });
     
   } catch (error) {
