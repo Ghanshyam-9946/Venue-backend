@@ -10,6 +10,8 @@ router.get('/departments', adminController.getAllDepartments);
 
 router.post('/login', authController.userLoginController);
 
+router.post('/send-otp', authController.sendOTPController);
+
 router.post('/register', authController.userRegisterController);
 
 router.post('/change-first-password', authMiddleware, authController.changeFirstTimePasswordController);

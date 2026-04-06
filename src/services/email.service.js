@@ -162,10 +162,37 @@ async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNa
   }
 }
 
+// OTP Email
+async function sendOTPEmail(email, otp) {
+  try {
+    console.log("📨 Sending OTP email to:", email);
+    const info = await transporter.sendMail({
+      from: `"Venue Booking Automated systems" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Your Registration OTP - Venue Booking System",
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #2563eb;">Account Verification</h2>
+          <p>Please use the following 6-digit OTP to verify your email address and complete registration:</p>
+          <h1 style="font-size: 32px; letter-spacing: 4px; color: #1e3a8a;">${otp}</h1>
+          <p>This code will expire in 5 minutes.</p>
+          <p>If you did not request this, please ignore this email.</p>
+        </div>
+      `
+    });
+    console.log("✅ OTP Email sent:", info.messageId);
+    return true;
+  } catch (err) {
+    console.error("❌ OTP Email error:", err.message);
+    return false;
+  }
+}
+
 module.exports = {
     sendRegistrationEmail,
     sendLoginEmail,
     sendForgotPasswordEmail,
     sendStatusUpdateEmail,
-    sendNewBookingAdminNotification
+    sendNewBookingAdminNotification,
+    sendOTPEmail
 }

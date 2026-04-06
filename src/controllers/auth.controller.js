@@ -3,153 +3,162 @@ const userModel = require('../models/user.model')
 const jwt = require('jsonwebtoken')
 const emailService = require('../services/email.service')
 const crypto = require("crypto");
+const otpModel = require("../models/otp.model");
 
 async function userRegisterController(req, res) {
-    try {
-        const { name, email, password, department } = req.body;
-        
-        if (!name || !email || !password || !department) {
-            return res.status(400).json({ success: false, message: "All fields are required" });
-        }
-        
-        if (!email.endsWith("@sistec.ac.in")) {
-            return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are allowed to register" });
-        }
-        
-        const isExist = await userModel.findOne({ email });
-        if (isExist) {
-            return res.status(422).json({ success: false, message: "Email already exists" });
-        }
-        
-        const user = await userModel.create({
-            email,
-            name,
-            password,
-            department,
-            role: "faculty",
-            isFirstLogin: false 
-        });
+  try {
+    const { name, email, password, department, otp } = req.body;
 
-        // Send registration email
-        await emailService.sendRegistrationEmail(user.email, user.name);
-        
-        return res.status(201).json({
-            success: true,
-            message: "User registered successfully"
-        });
-    } catch (error) {
-        console.log("REGISTER ERROR", error);
-        return res.status(500).json({ success: false, message: "Something went wrong" });
+    if (!name || !email || !password || !department || !otp) {
+      return res.status(400).json({ success: false, message: "All fields including OTP are required" });
     }
+
+    if (!email.endsWith("@sistec.ac.in")) {
+      return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are allowed to register" });
+    }
+
+    const isExist = await userModel.findOne({ email });
+    if (isExist) {
+      return res.status(422).json({ success: false, message: "Email already exists" });
+    }
+
+    // Verify OTP
+    const otpRecord = await otpModel.findOne({ email, otp });
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+    }
+
+    const user = await userModel.create({
+      email,
+      name,
+      password,
+      department,
+      role: "faculty",
+      isFirstLogin: false
+    });
+
+    // Delete the used OTP
+    await otpModel.deleteOne({ _id: otpRecord._id });
+
+    // Send registration email
+    await emailService.sendRegistrationEmail(user.email, user.name);
+
+    return res.status(201).json({
+      success: true,
+      message: "User registered successfully"
+    });
+  } catch (error) {
+    console.log("REGISTER ERROR", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
 }
 
-async function changeFirstTimePasswordController(req, res) {
-    try {
-        const { currentPassword, newPassword } = req.body;
-        const userId = req.user.userId;
-        const user = await userModel.findById(userId).select("+password");
+async function sendOTPController(req, res) {
+  try {
+    const { email } = req.body;
 
-        if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
-
-        const isValidPassword = await user.comparePassword(currentPassword);
-        if (!isValidPassword) {
-            return res.status(400).json({ success: false, message: "Invalid current password" });
-        }
-
-        if (newPassword.length < 6) {
-            return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
-        }
-
-        user.password = newPassword;
-        user.isFirstLogin = false;
-        await user.save();
-
-        return res.status(200).json({
-            success: true,
-            message: "Password changed successfully",
-            user: {
-                _id: user._id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                isFirstLogin: false
-            }
-        });
-    } catch (error) {
-        console.log("CHANGE PWD ERROR", error);
-        return res.status(500).json({ success: false, message: "Something went wrong" });
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
     }
+
+    if (!email.endsWith("@sistec.ac.in")) {
+      return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are allowed" });
+    }
+
+    const isExist = await userModel.findOne({ email });
+    if (isExist) {
+      return res.status(422).json({ success: false, message: "Email already exists" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Remove any existing OTP for this email
+    await otpModel.deleteMany({ email });
+
+    // Save new OTP
+    await otpModel.create({ email, otp });
+
+    // Send OTP email
+    const emailSent = await emailService.sendOTPEmail(email, otp);
+
+    if (!emailSent) {
+      return res.status(500).json({ success: false, message: "Failed to send OTP email. Please try again later." });
+    }
+
+    return res.status(200).json({ success: true, message: "OTP sent to email successfully" });
+
+  } catch (error) {
+    console.log("SEND OTP ERROR", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
 }
 
 async function userLoginController(req, res) {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    const user = await userModel.findOne({ email }).select("+password");
+  const user = await userModel.findOne({ email }).select("+password");
 
-    if (!user) {
-        return res.status(401).json({
-            message: "User not found",
-            status: "failed"
-        });
-    }
-
-    const isValidPassword = await user.comparePassword(password);
-
-    if (!isValidPassword) {
-        return res.status(401).json({
-            message: "Password is invalid",
-            status: "failed"
-        });
-    }
-
-    const token = jwt.sign(
-        {
-            userId: user._id,
-            role: user.role   
-        },
-        process.env.JWT_SECRET,
-        {
-            expiresIn: "3d"
-        }
-    );
-
-    res.cookie("token", token);
-
-    res.status(200).json({
-        user: {
-            _id: user._id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            isFirstLogin: user.isFirstLogin
-        },
-        token
+  if (!user) {
+    return res.status(401).json({
+      message: "User not found",
+      status: "failed"
     });
+  }
 
-    // We can still trigger login email if we want, or remove it. I'll keep it.
-    await emailService.sendLoginEmail(user.email, user.name);
-}
+  const isValidPassword = await user.comparePassword(password);
 
-async function userLogoutController(req,res){
-    const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+  if (!isValidPassword) {
+    return res.status(401).json({
+      message: "Password is invalid",
+      status: "failed"
+    });
+  }
 
-    if(!token){
-        return res.status(400).json({
-            message: "Token is required for logout",
-            status: "failed"
-        })
+  const token = jwt.sign(
+    {
+      userId: user._id,
+      role: user.role
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "3d"
     }
+  );
 
-    await tokenBlacklistModel.create({token:token});
-    res.clearCookie("token");
-    res.status(200).json({
-        message: "User logged out successfully"
-    })
+  res.cookie("token", token);
+
+  res.status(200).json({
+    user: {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      isFirstLogin: user.isFirstLogin
+    },
+    token
+  });
+
+  // We can still trigger login email if we want, or remove it. I'll keep it.
+  await emailService.sendLoginEmail(user.email, user.name);
 }
 
+async function userLogoutController(req, res) {
+  const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
+  if (!token) {
+    return res.status(400).json({
+      message: "Token is required for logout",
+      status: "failed"
+    })
+  }
+
+  await tokenBlacklistModel.create({ token: token });
+  res.clearCookie("token");
+  res.status(200).json({
+    message: "User logged out successfully"
+  })
+}
 
 //Forgot password controller
 const forgotPasswordController = async (req, res) => {
@@ -255,16 +264,11 @@ const resetPasswordController = async (req, res) => {
   }
 };
 
-
-
-
-
 module.exports = {
-    changeFirstTimePasswordController,
-    userLoginController,
-    userLogoutController,
-    forgotPasswordController,
-    resetPasswordController,
-    userRegisterController
-
+  userLoginController,
+  userLogoutController,
+  forgotPasswordController,
+  resetPasswordController,
+  userRegisterController,
+  sendOTPController
 }
