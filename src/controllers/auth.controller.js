@@ -57,6 +57,7 @@ async function userRegisterController(req, res) {
 async function sendOTPController(req, res) {
   try {
     const { email } = req.body;
+    console.log("📩 OTP Request received for:", email);
 
     if (!email) {
       return res.status(400).json({ success: false, message: "Email is required" });
@@ -74,6 +75,7 @@ async function sendOTPController(req, res) {
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log("Generated OTP for", email, ":", otp);
 
     // Remove any existing OTP for this email
     await otpModel.deleteMany({ email });
@@ -82,12 +84,15 @@ async function sendOTPController(req, res) {
     await otpModel.create({ email, otp });
 
     // Send OTP email
+    console.log("Attempting to send OTP email to:", email);
     const emailSent = await emailService.sendOTPEmail(email, otp);
 
     if (!emailSent) {
+      console.error("Failed to send OTP email to:", email);
       return res.status(500).json({ success: false, message: "Failed to send OTP email. Please try again later." });
     }
 
+    console.log("OTP email sent successfully to:", email);
     return res.status(200).json({ success: true, message: "OTP sent to email successfully" });
 
   } catch (error) {
