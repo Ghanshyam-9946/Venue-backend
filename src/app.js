@@ -7,15 +7,23 @@ const bookingRoutes = require("./routes/booking.route");
 
 const app = express()
 
-let frontendUrl = (process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app').trim();
-if (frontendUrl.endsWith('/')) {
-    frontendUrl = frontendUrl.slice(0, -1);
-}
-// Ensure it has a protocol
-if (!frontendUrl.startsWith('http://') && !frontendUrl.startsWith('https://')) {
-    frontendUrl = 'https://' + frontendUrl;
-}
-app.use(cors({ origin: frontendUrl, credentials: true })); // Frontend production url
+let allowedOrigins = [
+    (process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app').trim(),
+    'http://localhost:5173',
+    'http://localhost:3000'
+];
+
+allowedOrigins = allowedOrigins.map(url => {
+    url = url.trim();
+    if (url.endsWith('/')) url = url.slice(0, -1);
+    // Only prepend https if it's not localhost and doesn't have a protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+    return url;
+});
+
+app.use(cors({ origin: allowedOrigins, credentials: true })); // Frontend production url
 app.use(cookieParser());
 app.use(express.json())
 
