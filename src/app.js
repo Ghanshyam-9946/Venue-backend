@@ -7,7 +7,11 @@ const bookingRoutes = require("./routes/booking.route");
 
 const app = express()
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app', credentials: true })); // Frontend production url
+let frontendUrl = (process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app').trim();
+if (frontendUrl.endsWith('/')) {
+    frontendUrl = frontendUrl.slice(0, -1);
+}
+app.use(cors({ origin: frontendUrl, credentials: true })); // Frontend production url
 app.use(cookieParser());
 app.use(express.json())
 
