@@ -217,19 +217,22 @@ const checkAndUpdateBookingStatus = async (booking) => {
     if (booking.status !== "approved") return booking;
 
     try {
-        const parts = booking.timeSlot.split(' - ');
-        if (parts.length < 2) return booking;
-        
-        // Handle "Custom: 09:00 AM - 10:00 AM" or "09:00 AM - 11:00 AM"
-        let endTimePart = parts[1];
-        
-        const [time, ampm] = endTimePart.split(' ');
-        let [hours, minutes] = time.split(':').map(Number);
-        
-        if (ampm === 'PM' && hours < 12) hours += 12;
-        if (ampm === 'AM' && hours === 12) hours = 0;
+        if (!booking.endTime) {
+            // Fallback for old bookings without endTime field
+            const parts = booking.timeSlot.split(' - ');
+            if (parts.length < 2) return booking;
+            const lastPart = parts[1].replace("Custom: ", "");
+            const [time, ampm] = lastPart.split(' ');
+            let [hours, minutes] = time.split(':').map(Number);
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+            booking.endTime = hours * 60 + minutes;
+        }
 
         const bookingDate = new Date(booking.date);
+        const hours = Math.floor(booking.endTime / 60);
+        const minutes = booking.endTime % 60;
+        
         bookingDate.setHours(hours, minutes, 0, 0);
 
         if (Date.now() > bookingDate.getTime()) {

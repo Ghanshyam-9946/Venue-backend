@@ -187,15 +187,36 @@ const checkAndUpdateBookingStatus = async (booking) => {
     if (booking.status !== "approved") return booking;
 
     try {
-        const bookingDate = new Date(booking.date);
-        const hours = Math.floor(booking.endTime / 60);
-        const minutes = booking.endTime % 60;
-        
-        bookingDate.setHours(hours, minutes, 0, 0);
+        if (!booking.endTime) {
+            // Fallback for old bookings without endTime field
+            const parts = booking.timeSlot.split(' - ');
+            if (parts.length < 2) return booking;
+            const lastPart = parts[1].replace("Custom: ", "");
+            const [time, ampm] = lastPart.split(' ');
+            let [hours, minutes] = time.split(':').map(Number);
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+            booking.endTime = hours * 60 + minutes;
+            await booking.save();
+        }
 
-        if (Date.now() > bookingDate.getTime()) {
+        const now = new Date();
+        const bookingDay = new Date(booking.date);
+        
+        // Year, month, day from booking
+        // Hours, minutes from endTime
+        const endTimeDate = new Date(
+            bookingDay.getFullYear(),
+            bookingDay.getMonth(),
+            bookingDay.getDate(),
+            Math.floor(booking.endTime / 60),
+            booking.endTime % 60
+        );
+
+        if (now > endTimeDate) {
             booking.status = "completed";
             await booking.save();
+            console.log(`Booking ${booking._id} marked as completed.`);
         }
     } catch (e) {
         console.error("Error checking booking status:", e);
