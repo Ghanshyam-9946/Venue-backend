@@ -192,7 +192,7 @@ const forgotPasswordController = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app';
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
     console.log("RESET URL:", resetUrl);
