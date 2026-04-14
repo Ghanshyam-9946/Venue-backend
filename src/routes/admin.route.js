@@ -10,6 +10,7 @@ router.get("/users", authMiddleware, isSuperadmin, adminController.getAllUsers);
 router.put("/user/:id/role", authMiddleware, isSuperadmin, adminController.updateUserRole);
 router.delete("/user/:id", authMiddleware, isSuperadmin, adminController.deleteUser);
 router.post("/department", authMiddleware, isSuperadmin, adminController.createDepartment);
+router.put("/department/:id", authMiddleware, isSuperadmin, adminController.updateDepartment);
 router.delete("/department/:id", authMiddleware, isSuperadmin, adminController.deleteDepartment);
 
 // Admin & Superadmin

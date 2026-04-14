@@ -55,6 +55,24 @@ const createDepartment = async (req, res) => {
   }
 };
 
+const updateDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    const dept = await departmentModel.findById(id);
+    if (!dept) return res.status(404).json({ success: false, message: "Department not found" });
+
+    if (name) dept.name = name;
+    if (description !== undefined) dept.description = description;
+
+    await dept.save();
+    return res.status(200).json({ success: true, department: dept });
+  } catch(error) {
+    if(error.code === 11000) return res.status(400).json({ success: false, message: "Department name already exists" });
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
 const getAllDepartments = async (req, res) => {
   try {
     const depts = await departmentModel.find();
@@ -600,6 +618,7 @@ const getAllHistoryStatement = async (req, res) => {
 module.exports = { 
   registerFaculty,
   createDepartment,
+  updateDepartment,
   getAllDepartments,
   deleteDepartment,
   getAllUsers,
