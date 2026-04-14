@@ -103,9 +103,13 @@ async function sendForgotPasswordEmail(email, resetUrl) {
       subject: "Here is the link to fogot your password",
       html: `
       <h2>Password Reset</h2>
-      <p>Click below link to reset your password:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
+      <p>To reset your password, please copy and paste the following full link into your browser address bar:</p>
+      <div style="background: #f4f4f5; padding: 15px; border-radius: 8px; word-break: break-all; margin: 20px 0; border: 1px solid #e4e4e7;">
+        ${resetUrl}
+      </div>
       <p>This link will expire in 10 minutes.</p>
+      <br>
+      <i>Note: Please do not click any 'Unsubscribe' link below to avoid unsubscribing from key alerts.</i>
       `
     });
 
