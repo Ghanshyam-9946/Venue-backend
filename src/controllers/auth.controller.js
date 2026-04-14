@@ -192,7 +192,7 @@ const forgotPasswordController = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    let frontendUrl = process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app';
+    let frontendUrl = (process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app').trim();
     if (!frontendUrl.startsWith('http://') && !frontendUrl.startsWith('https://')) {
         frontendUrl = 'https://' + frontendUrl;
     }
