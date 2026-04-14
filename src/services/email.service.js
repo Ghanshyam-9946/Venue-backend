@@ -1,10 +1,14 @@
+const dns = require("dns");
 const nodemailer = require("nodemailer");
+
+// Force IPv4 in Node.js, because Render's IPv6 configuration often fails with Gmail SMTP
+dns.setDefaultResultOrder("ipv4first");
 
 // Create a transporter using SMTP
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // Use true for port 465, false for 587
+  port: 465, // 465 is more reliable on cloud hosting like Render
+  secure: true, // Use true for port 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
