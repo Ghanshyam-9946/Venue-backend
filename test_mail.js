@@ -1,32 +1,41 @@
 require('dotenv').config();
-const nodemailer = require('nodemailer');
-
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
 
 async function testMail() {
   try {
-    console.log('Testing SMTP connection...');
-    await transporter.verify();
-    console.log('✅ SMTP connection is verified!');
+    console.log('Testing Brevo API connection...');
+    
+    // The "to" might be an array or string.
+    const toEmails = [{ email: process.env.SMTP_USER }]; // sending to self
+    
+    const payload = {
+      sender: {
+        name: "Venue Booking Automated systems",
+        email: process.env.SMTP_USER 
+      },
+      to: toEmails,
+      subject: "Brevo API Test Email",
+      htmlContent: "<p>If you receive this, your Brevo HTTP API configuration is working correctly and bypassing Render SMTP blocks!</p>"
+    };
 
-    console.log('Sending test email...');
-    const info = await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to: process.env.SMTP_USER, // send to self
-      subject: "SMTP Test Email",
-      text: "If you receive this, your SMTP configuration is working correctly.",
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "api-key": process.env.BREVO_API_KEY,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
     });
-    console.log('✅ Test email sent:', info.messageId);
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`Brevo API Error (${response.status}): ${errorData}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Test email sent via Brevo:', data.messageId);
   } catch (error) {
-    console.error('❌ SMTP Error:', error);
+    console.error('❌ Brevo Error:', error.message);
   }
 }
 
