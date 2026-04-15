@@ -158,7 +158,7 @@ async function sendStatusUpdateEmail(email, name, status, reason, venueName, dat
 }
 
 // New Booking Notification to Admins
-async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNames, date, timeSlot) {
+async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNames, date, timeSlot, requirements) {
   try {
     if (!adminEmails || adminEmails.length === 0) return;
 
@@ -178,6 +178,7 @@ async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNa
           <p><strong>Venues:</strong> ${venues}</p>
           <p><strong>Date:</strong> ${date}</p>
           <p><strong>Time Slot(s):</strong> ${timeSlot}</p>
+          ${requirements ? `<p><strong>Requirements/Specific Needs:</strong> ${requirements}</p>` : ''}
           <p style="margin-top: 20px;">Please log in to the admin panel to review these requests.</p>
         </div>
       `

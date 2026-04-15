@@ -138,7 +138,8 @@ const createBooking = async(req,res)=>{
                 facultyName,
                 venueNames,
                 dateString,
-                targetTimeSlots.join(", ")
+                targetTimeSlots.join(", "),
+                requirements
             );
         }
 
