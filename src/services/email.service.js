@@ -138,8 +138,8 @@ async function sendStatusUpdateEmail(email, name, status, reason, venueName, dat
         <p>Your venue booking request for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>${status}</strong>.</p>`;
 
     if (reason && (status === 'rejected' || status === 'revoked')) {
-      htmlContent += `<div style="background: #fff5f5; padding: 10px; border-left: 4px solid #dc2626; margin: 10px 0;">
-        <strong>Reason:</strong> ${reason}
+      htmlContent += `<div style="background: #fff5f5; padding: 15px; border-left: 4px solid #dc2626; margin: 10px 0; border-radius: 4px;">
+        <strong style="color: #dc2626;">Reason for ${status}:</strong> ${reason}
       </div>`;
     }
 
@@ -199,7 +199,7 @@ async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNa
 }
 
 // Specialized Revoke/Priority Request Notification
-async function sendPriorityBookingAdminNotification(adminEmails, facultyName, previousFacultyName, venueNames, date, timeSlot) {
+async function sendPriorityBookingAdminNotification(adminEmails, facultyName, previousFacultyName, venueNames, date, timeSlot, priorityReason) {
   try {
     if (!adminEmails || adminEmails.length === 0) return;
 
@@ -212,22 +212,24 @@ async function sendPriorityBookingAdminNotification(adminEmails, facultyName, pr
       subject: `[URGENT REVOKE] Priority Request for ${venues}`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eab308; border-radius: 10px; background: #fffbeb;">
-          <h2 style="color: #854d0e;">⚠️ Revoke Request Received</h2>
-          <p>A new priority request has been received that conflicts with an existing allotment.</p>
+          <h2 style="color: #854d0e;">⚠️ Urgent Priority Request</h2>
+          <p>This venue is <strong>already booked</strong>, but faculty member <strong>${facultyName}</strong> still wants it for their event.</p>
           
           <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #fde68a;">
-            <p style="margin: 0; color: #71717a; font-size: 12px; text-transform: uppercase; font-weight: bold;">Current Status</p>
-            <p>You have previously allotted this slot to: <strong>${previousFacultyName}</strong></p>
-            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 10px 0;">
-            <p style="margin: 0; color: #71717a; font-size: 12px; text-transform: uppercase; font-weight: bold;">New Requester</p>
-            <p>Faculty member <strong>${facultyName}</strong> is now requesting this same slot.</p>
+            <p style="margin: 0; color: #71717a; font-size: 11px; text-transform: uppercase; font-weight: bold;">Requester's Stated Reason</p>
+            <p style="font-style: italic; color: #1e293b; font-size: 16px;">"${priorityReason || "Reason not provided"}"</p>
+            
+            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 15px 0;">
+            
+            <p style="margin: 0; color: #71717a; font-size: 11px; text-transform: uppercase; font-weight: bold;">Conflicting Booking</p>
+            <p>Currently allotted to: <strong>${previousFacultyName}</strong></p>
           </div>
 
-          <p><strong>Resource:</strong> ${venues}</p>
+          <p><strong>Venue:</strong> ${venues}</p>
           <p><strong>Date:</strong> ${date}</p>
           <p><strong>Time Slot:</strong> ${timeSlot}</p>
 
-          <p style="margin-top: 20px; font-weight: bold; color: #854d0e;">Please log in to the admin panel to review and decide whether to revoke the previous booking.</p>
+          <p style="margin-top: 20px; font-weight: bold; color: #854d0e;">If this request has higher priority, you can approve it from the admin panel, which will automatically notify and revoke the previous booking.</p>
           <p>Regards,<br><strong>Sistec event organizer</strong></p>
         </div>
       `

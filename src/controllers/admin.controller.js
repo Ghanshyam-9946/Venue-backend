@@ -378,7 +378,7 @@ const getAllRequests = async (req, res) => {
 const updateRequestStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    let { status, reason } = req.body;
+    let { status, reason, cancellationReason } = req.body;
 
     const request = await bookingModel.findById(id).populate("faculty", "name email").populate("venue", "name department");
 
@@ -410,10 +410,11 @@ const updateRequestStatus = async (req, res) => {
       if (conflict) {
         // Revoke the conflicting booking
         conflict.status = "revoked";
-        const revokeReason = currentUser.role === "superadmin" 
+        const revokeReason = cancellationReason || (currentUser.role === "superadmin" 
           ? "Revoked by head due to a priority event request" 
-          : "Revoked by HOD due to a priority event request";
-        conflict.reason = revokeReason;
+          : "Revoked by HOD due to a priority event request");
+        conflict.cancellationReason = revokeReason;
+        conflict.reason = revokeReason; // Syncing for backward compatibility with status check UI
         await conflict.save();
 
         // Notify the originally approved faculty
@@ -560,7 +561,7 @@ const getDepartmentHistory = async (req, res) => {
 const updateBatchStatus = async (req, res) => {
   try {
     const { batchId } = req.params;
-    let { status, reason } = req.body;
+    let { status, reason, cancellationReason } = req.body;
     
     const currentUser = await userModel.findById(req.user.userId);
     
@@ -591,9 +592,10 @@ const updateBatchStatus = async (req, res) => {
 
         if (conflict) {
           conflict.status = "revoked";
-          const revokeReason = currentUser.role === "superadmin" 
+          const revokeReason = cancellationReason || (currentUser.role === "superadmin" 
             ? "Revoked by head due to a priority batch request" 
-            : "Revoked by HOD due to a priority batch request";
+            : "Revoked by HOD due to a priority batch request");
+          conflict.cancellationReason = revokeReason;
           conflict.reason = revokeReason;
           await conflict.save();
 

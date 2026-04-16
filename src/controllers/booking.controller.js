@@ -27,7 +27,7 @@ const parseRange = (timeSlot) => {
 
 const createBooking = async(req,res)=>{
     try{
-        const { venue, venues, date, timeSlot, timeSlots, purpose, requirements } = req.body;
+        const { venue, venues, date, timeSlot, timeSlots, purpose, requirements, priorityReason } = req.body;
 
         // Normalize to an array of venue IDs
         let targetVenues = [];
@@ -146,18 +146,23 @@ const createBooking = async(req,res)=>{
                     purpose,
                     requirements: requirements || "",
                     batchId,
-                    isConflict: venueData.isConflict
+                    isConflict: venueData.isConflict,
+                    priorityReason: venueData.isConflict ? priorityReason : ""
                 });
                 createdBookings.push(booking);
             }
         }
 
         // 3. Notify admins (One email per batch)
+        // Find requesting faculty's department to notify their HOD
+        const requesterDept = faculty ? faculty.department : null;
+
         const adminQuery = {
             $or: [
                 { role: "superadmin" },
-                { role: "admin", department: { $in: existingVenues.map(v => v.venue.department) } }
-            ]
+                { role: "admin", department: { $in: existingVenues.map(v => v.venue.department) } },
+                requesterDept ? { role: "admin", department: requesterDept } : null
+            ].filter(Boolean)
         };
         
         const admins = await userModel.find(adminQuery).select("email");
@@ -174,7 +179,8 @@ const createBooking = async(req,res)=>{
                     firstConflictFaculty,
                     venueNames,
                     dateString,
-                    timeSlotStr
+                    timeSlotStr,
+                    priorityReason
                 );
             } else {
                 await emailService.sendNewBookingAdminNotification(

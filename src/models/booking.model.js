@@ -49,6 +49,14 @@ const bookingSchema = new mongoose.Schema({
       type: String,
       default: ""
     },
+    priorityReason: {
+      type: String,
+      default: ""
+    },
+    cancellationReason: {
+      type: String,
+      default: ""
+    },
     isConflict: {
       type: Boolean,
       default: false
