@@ -400,15 +400,38 @@ const updateRequestStatus = async (req, res) => {
       const conflict = await bookingModel.findOne({
         venue: request.venue._id,
         date: request.date,
-        timeSlot: request.timeSlot,
-        status: "approved"
-      });
+        $or: [
+          { startTime: { $lt: request.endTime }, endTime: { $gt: request.startTime } }
+        ],
+        status: "approved",
+        _id: { $ne: request._id }
+      }).populate("faculty", "name email");
 
       if (conflict) {
-        return res.status(400).json({
-          success: false,
-          message: "Venue already booked for this time"
-        });
+        // Revoke the conflicting booking
+        conflict.status = "revoked";
+        const revokeReason = currentUser.role === "superadmin" 
+          ? "Revoked by head due to a priority event request" 
+          : "Revoked by HOD due to a priority event request";
+        conflict.reason = revokeReason;
+        await conflict.save();
+
+        // Notify the originally approved faculty
+        if (conflict.faculty) {
+           let conflictDateString = conflict.date;
+           if (typeof conflict.date.toISOString === "function") {
+               conflictDateString = conflict.date.toISOString().split("T")[0];
+           }
+           await emailService.sendStatusUpdateEmail(
+             conflict.faculty.email, 
+             conflict.faculty.name, 
+             "revoked", 
+             revokeReason, 
+             request.venue.name, 
+             conflictDateString,
+             conflict.timeSlot
+           );
+        }
       }
     }
 
@@ -559,10 +582,37 @@ const updateBatchStatus = async (req, res) => {
         const conflict = await bookingModel.findOne({
           venue: request.venue._id,
           date: request.date,
-          timeSlot: request.timeSlot,
-          status: "approved"
-        });
-        if (conflict) continue; // Skip conflict
+          $or: [
+            { startTime: { $lt: request.endTime }, endTime: { $gt: request.startTime } }
+          ],
+          status: "approved",
+          _id: { $ne: request._id }
+        }).populate("faculty", "name email");
+
+        if (conflict) {
+          conflict.status = "revoked";
+          const revokeReason = currentUser.role === "superadmin" 
+            ? "Revoked by head due to a priority batch request" 
+            : "Revoked by HOD due to a priority batch request";
+          conflict.reason = revokeReason;
+          await conflict.save();
+
+          if (conflict.faculty) {
+             let cDateStr = conflict.date;
+             if (typeof conflict.date.toISOString === "function") {
+                 cDateStr = conflict.date.toISOString().split("T")[0];
+             }
+             await emailService.sendStatusUpdateEmail(
+               conflict.faculty.email, 
+               conflict.faculty.name, 
+               "revoked", 
+               revokeReason, 
+               request.venue.name, 
+               cDateStr,
+               conflict.timeSlot
+             );
+          }
+        }
       }
       
       request.status = status;

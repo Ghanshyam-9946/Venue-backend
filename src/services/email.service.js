@@ -51,6 +51,7 @@ async function sendRegistrationEmail(email, name) {
           <p>Welcome to <strong>Venue Booking Automated systems</strong>!</p>
           <p>Your account has been created successfully. You can now log in and start booking venues.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
           <p style="font-size: 12px; color: #666;">This is an automated message. Please do not reply.</p>
         </div>
       `
@@ -78,6 +79,7 @@ async function sendLoginEmail(email, name) {
           <h2 style="color: #2563eb;">Hello ${name}</h2>
           <p>A new login was detected for your account.</p>
           <p>If this wasn't you, please reset your password immediately.</p>
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
         </div>
       `
     });
@@ -106,6 +108,7 @@ async function sendForgotPasswordEmail(email, resetUrl) {
       <p>To reset your password, please copy and paste the following full link into your browser address bar:</p>
       <div style="background: #f4f4f5; padding: 15px; border-radius: 8px; word-break: break-all; margin: 20px 0; border: 1px solid #e4e4e7;">${resetUrl}</div>
       <p>This link will expire in 10 minutes.</p>
+      <p>Regards,<br><strong>Sistec event organizer</strong></p>
       <br>
       <i>Note: Please do not click any 'Unsubscribe' link below to avoid unsubscribing from key alerts.</i>
       `
@@ -140,7 +143,9 @@ async function sendStatusUpdateEmail(email, name, status, reason, venueName, dat
       </div>`;
     }
 
-    htmlContent += `</div>`;
+    htmlContent += `
+      <p>Regards,<br><strong>Sistec event organizer</strong></p>
+    </div>`;
 
     const info = await transporter.sendMail({
       from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
@@ -180,6 +185,7 @@ async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNa
           <p><strong>Time Slot(s):</strong> ${timeSlot}</p>
           ${requirements ? `<p><strong>Requirements/Specific Needs:</strong> ${requirements}</p>` : ''}
           <p style="margin-top: 20px;">Please log in to the admin panel to review these requests.</p>
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
         </div>
       `
     });
@@ -207,6 +213,7 @@ async function sendOTPEmail(email, otp) {
           <h1 style="font-size: 32px; letter-spacing: 4px; color: #1e3a8a;">${otp}</h1>
           <p>This code will expire in 5 minutes.</p>
           <p>If you did not request this, please ignore this email.</p>
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
         </div>
       `
     });

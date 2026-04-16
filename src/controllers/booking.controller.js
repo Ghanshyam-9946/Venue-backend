@@ -64,6 +64,7 @@ const createBooking = async(req,res)=>{
                 })
             };
             
+            let conflictFound = false;
             for (const tSlot of targetTimeSlots) {
                 const { start, end } = parseRange(tSlot);
                 
@@ -71,20 +72,28 @@ const createBooking = async(req,res)=>{
                 const conflict = await bookingModel.findOne({
                     venue: venueId,
                     date: date,
-                    status: { $in: ["approved", "pending"] }, // Also check pending to be safe
+                    status: { $in: ["approved", "pending"] },
                     $or: [
                         { startTime: { $lt: end }, endTime: { $gt: start } }
                     ]
                 });
 
                 if (conflict) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `Venue ${existingVenue.name} has a conflicting booking (${conflict.timeSlot}) for the requested time ${tSlot}.`
-                    });
+                    // If it's the SAME faculty, block it (unless it's a different batch, but usually duplicates are bad)
+                    if (conflict.faculty.toString() === req.user.userId.toString()) {
+                         return res.status(400).json({
+                            success: false,
+                            message: `You already have a ${conflict.status} booking for this time.`
+                        });
+                    }
+                    
+                    // If it's an approved booking by someone else, we mark it as conflict but allow it
+                    if (conflict.status === "approved") {
+                        conflictFound = true;
+                    }
                 }
             }
-            existingVenues.push(existingVenue);
+            existingVenues.push({ venue: existingVenue, isConflict: conflictFound });
         }
 
         const createdBookings = [];
@@ -99,10 +108,11 @@ const createBooking = async(req,res)=>{
         }
 
         const batchId = crypto.randomBytes(8).toString("hex");
-        const venueNames = existingVenues.map(v => v.name);
+        const venueNames = existingVenues.map(v => v.venue.name);
 
         // 2. Create bookings
         for (let i = 0; i < targetVenues.length; i++) {
+            const venueData = existingVenues[i];
             const venueId = targetVenues[i];
             for (const tSlot of targetTimeSlots) {
                 const { start, end } = parseRange(tSlot);
@@ -115,7 +125,8 @@ const createBooking = async(req,res)=>{
                     endTime: end,
                     purpose,
                     requirements: requirements || "",
-                    batchId
+                    batchId,
+                    isConflict: venueData.isConflict
                 });
                 createdBookings.push(booking);
             }

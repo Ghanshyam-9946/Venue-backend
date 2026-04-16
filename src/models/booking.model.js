@@ -48,6 +48,10 @@ const bookingSchema = new mongoose.Schema({
     reason: {
       type: String,
       default: ""
+    },
+    isConflict: {
+      type: Boolean,
+      default: false
     }
 
 },{timestamps:true});
