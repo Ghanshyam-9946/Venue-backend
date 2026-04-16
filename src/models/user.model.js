@@ -41,6 +41,17 @@ const userSchema = new mongoose.Schema({
     default: true
   },
 
+  mobile: {
+    type: String,
+    required: [true, "Mobile number is required"],
+    trim: true
+  },
+
+  avatar: {
+    type: String,
+    default: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+  },
+
   resetPasswordToken: {
     type: String
   },

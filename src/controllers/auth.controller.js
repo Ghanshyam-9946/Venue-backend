@@ -156,7 +156,9 @@ async function userLoginController(req, res) {
       email: user.email,
       name: user.name,
       role: user.role,
-      isFirstLogin: user.isFirstLogin
+      isFirstLogin: user.isFirstLogin,
+      mobile: user.mobile,
+      avatar: user.avatar
     },
     token
   });
