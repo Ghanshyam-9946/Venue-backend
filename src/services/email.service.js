@@ -8,7 +8,7 @@ const transporter = {
     
     const payload = {
       sender: {
-        name: "Sagar Resource Hub",
+        name: "Sistec Event Organizer",
         email: process.env.SMTP_USER // Kept SMTP_USER to avoid breaking existing setup. Ensure this is verified on Brevo.
       },
       to: toEmails,
@@ -42,9 +42,9 @@ async function sendRegistrationEmail(email, name) {
     console.log("📨 Sending registration email to:", email);
 
     const info = await transporter.sendMail({
-      from: `"Sagar Resource Hub" <${process.env.SMTP_USER}>`,
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "Welcome to Sagar Resource Hub",
+      subject: "Welcome to Sistec Event Organizer",
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #2563eb;">Hello ${name}</h2>
@@ -70,9 +70,9 @@ async function sendLoginEmail(email, name) {
     console.log(" Sending login email to:", email);
 
     const info = await transporter.sendMail({
-      from: `"Sagar Resource Hub" <${process.env.SMTP_USER}>`,
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "Welcome back to Sagar Resource Hub",
+      subject: "Welcome back to Sistec Event Organizer",
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #2563eb;">Hello ${name}</h2>
@@ -143,7 +143,7 @@ async function sendStatusUpdateEmail(email, name, status, reason, venueName, dat
     htmlContent += `</div>`;
 
     const info = await transporter.sendMail({
-      from: `"Sagar Resource Hub" <${process.env.SMTP_USER}>`,
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: email,
       subject: `Resource Booking Status: ${status.toUpperCase()}`,
       html: htmlContent
@@ -168,7 +168,7 @@ async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNa
     console.log("📨 Sending new booking admin notification for:", venues);
 
     const info = await transporter.sendMail({
-      from: `"Sagar Resource Hub" <${process.env.SMTP_USER}>`,
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: adminEmails.join(','),
       subject: "New Resource Booking Request",
       html: `
@@ -197,9 +197,9 @@ async function sendOTPEmail(email, otp) {
   try {
     console.log("📨 Sending OTP email to:", email);
     const info = await transporter.sendMail({
-      from: `"Sagar Resource Hub" <${process.env.SMTP_USER}>`,
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "Your Registration OTP - Sagar Resource Hub",
+      subject: "Your Registration OTP - Sistec Event Organizer",
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
           <h2 style="color: #2563eb;">Account Verification</h2>

@@ -9,7 +9,7 @@ async function testMail() {
     
     const payload = {
       sender: {
-        name: "Sagar Resource Hub",
+        name: "Sistec Event Organizer",
         email: process.env.SMTP_USER 
       },
       to: toEmails,
