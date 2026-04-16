@@ -10,6 +10,10 @@ const departmentSchema = new mongoose.Schema({
     description: {
         type: String,
         default: ""
+    },
+    block: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Block"
     }
 }, { timestamps: true });
 

@@ -4,6 +4,8 @@ const bookingModel = require("../models/booking.model");
 const userModel = require("../models/user.model");
 const emailService = require("../services/email.service");
 const departmentModel = require("../models/department.model");
+const blockModel = require("../models/block.model");
+
 // REGISTER FACULTY
 const registerFaculty = async (req, res) => {
   try {
@@ -42,12 +44,64 @@ const registerFaculty = async (req, res) => {
   }
 };
 
+// BLOCK CONTROLLERS
+const createBlock = async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: "Block name is required" });
+    const block = await blockModel.create({ name });
+    return res.status(201).json({ success: true, block });
+  } catch (error) {
+    if (error.code === 11000) return res.status(400).json({ success: false, message: "Block already exists" });
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
+const updateBlock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const block = await blockModel.findById(id);
+    if (!block) return res.status(404).json({ success: false, message: "Block not found" });
+
+    if (name) block.name = name;
+    await block.save();
+    return res.status(200).json({ success: true, block });
+  } catch (error) {
+    if (error.code === 11000) return res.status(400).json({ success: false, message: "Block name already exists" });
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
+const getAllBlocks = async (req, res) => {
+  try {
+    const blocks = await blockModel.find().sort({ name: 1 });
+    return res.status(200).json({ success: true, blocks });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
+const deleteBlock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Check if any department is using this block
+    const depts = await departmentModel.findOne({ block: id });
+    if (depts) return res.status(400).json({ success: false, message: "Cannot delete block. There are departments assigned to it." });
+
+    await blockModel.findByIdAndDelete(id);
+    return res.status(200).json({ success: true, message: "Block deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
 // DEPARTMENT CONTROLLERS
 const createDepartment = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, blockId } = req.body;
     if (!name) return res.status(400).json({ success: false, message: "Name required" });
-    const dept = await departmentModel.create({ name, description });
+    const dept = await departmentModel.create({ name, description, block: blockId });
     return res.status(201).json({ success: true, department: dept });
   } catch(error) {
     if(error.code === 11000) return res.status(400).json({ success: false, message: "Department already exists" });
@@ -58,12 +112,13 @@ const createDepartment = async (req, res) => {
 const updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, blockId } = req.body;
     const dept = await departmentModel.findById(id);
     if (!dept) return res.status(404).json({ success: false, message: "Department not found" });
 
     if (name) dept.name = name;
     if (description !== undefined) dept.description = description;
+    if (blockId !== undefined) dept.block = blockId;
 
     await dept.save();
     return res.status(200).json({ success: true, department: dept });
@@ -75,7 +130,7 @@ const updateDepartment = async (req, res) => {
 
 const getAllDepartments = async (req, res) => {
   try {
-    const depts = await departmentModel.find();
+    const depts = await departmentModel.find().populate("block");
     return res.status(200).json({ success: true, departments: depts });
   } catch(error) {
     return res.status(500).json({ success: false, message: "Something went wrong" });
@@ -615,8 +670,46 @@ const getAllHistoryStatement = async (req, res) => {
   }
 };
 
+const setupInitialBlocks = async (req, res) => {
+  try {
+    // 1. Create Blocks A, B, C, D if they don't exist
+    const blockNames = ["Block A", "Block B", "Block C", "Block D"];
+    const blocks = [];
+    
+    for (const name of blockNames) {
+      let b = await blockModel.findOne({ name });
+      if (!b) {
+        b = await blockModel.create({ name });
+      }
+      blocks.push(b);
+    }
+
+    // 2. Distribute Departments
+    const depts = await departmentModel.find();
+    for (let i = 0; i < depts.length; i++) {
+       const blockIndex = i % 4; // Equal distribution
+       depts[i].block = blocks[blockIndex]._id;
+       await depts[i].save();
+    }
+
+    return res.status(200).json({ 
+       success: true, 
+       message: "Initial blocks created and departments distributed successfully",
+       blocks: blocks.map(b => b.name)
+    });
+  } catch (error) {
+    console.log("SETUP BLOCKS ERROR", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
 module.exports = { 
   registerFaculty,
+  createBlock,
+  updateBlock,
+  getAllBlocks,
+  deleteBlock,
+  setupInitialBlocks,
   createDepartment,
   updateDepartment,
   getAllDepartments,

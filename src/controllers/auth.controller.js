@@ -13,10 +13,9 @@ async function userRegisterController(req, res) {
       return res.status(400).json({ success: false, message: "All fields including OTP are required" });
     }
 
-    // Temporarily disabled domain check for testing
-    // if (!email.endsWith("@sistec.ac.in")) {
-    //   return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are allowed to register" });
-    // }
+    if (!email.endsWith("@sistec.ac.in")) {
+      return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are allowed to register" });
+    }
 
     const isExist = await userModel.findOne({ email });
     if (isExist) {
@@ -61,6 +60,10 @@ async function sendOTPController(req, res) {
 
     if (!email) {
       return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    if (!email.endsWith("@sistec.ac.in")) {
+      return res.status(400).json({ success: false, message: "Only @sistec.ac.in emails are permitted" });
     }
 
     // Check environment variables

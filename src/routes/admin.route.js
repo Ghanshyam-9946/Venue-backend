@@ -12,6 +12,12 @@ router.delete("/user/:id", authMiddleware, isSuperadmin, adminController.deleteU
 router.post("/department", authMiddleware, isSuperadmin, adminController.createDepartment);
 router.put("/department/:id", authMiddleware, isSuperadmin, adminController.updateDepartment);
 router.delete("/department/:id", authMiddleware, isSuperadmin, adminController.deleteDepartment);
+router.get("/blocks", authMiddleware, adminController.getAllBlocks);
+router.post("/block", authMiddleware, isSuperadmin, adminController.createBlock);
+router.put("/block/:id", authMiddleware, isSuperadmin, adminController.updateBlock);
+router.delete("/block/:id", authMiddleware, isSuperadmin, adminController.deleteBlock);
+router.post("/setup-blocks", authMiddleware, isSuperadmin, adminController.setupInitialBlocks);
+
 
 // Admin & Superadmin
 router.post("/register-faculty", authMiddleware, isAdmin, adminController.registerFaculty);
