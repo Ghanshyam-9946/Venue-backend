@@ -159,18 +159,73 @@ async function sendStatusUpdateEmail(email, name, status, reason, venueName, dat
           </div>
         </div>
       `;
-    } else {
-      let color = "#2563eb"; 
-      if (status === 'rejected') color = "#dc2626";
+    } else if (status === 'approved') {
+       htmlContent = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #10b981; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: #ecfdf5; padding: 20px; border-bottom: 2px solid #d1fae5;">
+            <h2 style="color: #065f46; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              🎉 BOOKING APPROVED
+            </h2>
+          </div>
+          <div style="padding: 24px; background: white;">
+            <p style="color: #1f2937; font-size: 16px; font-weight: 500;">Hello ${name},</p>
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">
+              We are pleased to inform you that your booking request for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>APPROVED</strong>.
+            </p>
+            
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; border-left: 5px solid #10b981; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; color: #065f46; font-size: 11px; text-transform: uppercase; font-weight: bold;">Confirmation Note</p>
+              <p style="color: #1f2937; font-size: 15px; margin: 0; font-style: italic;">"${reason || "Your resource is reserved and ready for use."}"</p>
+            </div>
 
-      htmlContent = `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: ${color}; text-transform: uppercase;">Booking ${status}</h2>
-          <p>Hello <strong>${name}</strong>,</p>
-          <p>Your venue booking request for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>${status}</strong>.</p>
-          ${reason ? `<div style="background: #f8fafc; padding: 15px; border-left: 4px solid ${color}; margin: 10px 0; border-radius: 4px; color: #334155;"><strong>Note:</strong> ${reason}</div>` : ''}
-          <p>Regards,<br><strong>Sistec event organizer</strong></p>
-        </div>`;
+            <p style="color: #6b7280; font-size: 13px; margin-top: 20px;">
+              Please ensure to follow the venue guidelines and arrive on time.
+            </p>
+
+            <div style="margin-top: 30px; border-top: 1px solid #f3f4f6; padding-top: 20px; text-align: center;">
+              <p style="font-size: 14px; font-weight: bold; color: #1e3a8a; margin: 0;">Sistec Event Organizer</p>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+       // Rejected or other
+       const isRejected = status === 'rejected';
+       const color = isRejected ? "#dc2626" : "#2563eb";
+       const bgColor = isRejected ? "#fef2f2" : "#eff6ff";
+       const borderColor = isRejected ? "#fee2e2" : "#dbeafe";
+       const textColor = isRejected ? "#991b1b" : "#1e40af";
+
+       htmlContent = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid ${color}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: ${bgColor}; padding: 20px; border-bottom: 2px solid ${borderColor};">
+            <h2 style="color: ${textColor}; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              BOOKING ${status.toUpperCase()}
+            </h2>
+          </div>
+          <div style="padding: 24px; background: white;">
+            <p style="color: #1f2937; font-size: 16px; font-weight: 500;">Hello ${name},</p>
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">
+              Your venue booking request for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>${status.toUpperCase()}</strong>.
+            </p>
+            
+            ${reason ? `
+            <div style="background: ${isRejected ? '#fff5f5' : '#f8fafc'}; padding: 20px; border-radius: 8px; border-left: 5px solid ${color}; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; color: ${textColor}; font-size: 11px; text-transform: uppercase; font-weight: bold;">Admin Remarks</p>
+              <p style="color: #1f2937; font-size: 15px; margin: 0; font-style: italic;">"${reason}"</p>
+            </div>
+            ` : ''}
+
+            <p style="color: #6b7280; font-size: 13px; margin-top: 20px;">
+              ${isRejected ? "Please check for other available slots or contact the administration for further assistance." : ""}
+            </p>
+
+            <div style="margin-top: 30px; border-top: 1px solid #f3f4f6; padding-top: 20px; text-align: center;">
+              <p style="font-size: 14px; font-weight: bold; color: #1e3a8a; margin: 0;">Sistec Event Organizer</p>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     const info = await transporter.sendMail({

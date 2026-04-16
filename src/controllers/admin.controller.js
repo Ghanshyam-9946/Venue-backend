@@ -619,11 +619,29 @@ const updateBatchStatus = async (req, res) => {
       
       request.status = status;
       
+      const prefix = currentUser.role === "superadmin"
+        ? `Your grouped booking ${status} by head`
+        : `Your grouped booking ${status} by HOD of department`;
+      const itemReason = reason ? `${prefix}. Reason: ${reason}` : prefix;
+      request.reason = (status === 'approved') ? (currentUser.role === 'superadmin' ? 'Approved by head' : 'Approved by HOD') : itemReason;
+      await request.save();
+      updatedCount++;
+    }
+
+    // Notify the requester ONCE for the whole batch
+    const firstReq = requests[0];
+    if (firstReq && firstReq.faculty) {
+      const venueNames = requests.map(r => r.venue?.name || "Unknown").join(", ");
+      let dateString = firstReq.date;
+      if (typeof firstReq.date.toISOString === "function") {
+        dateString = firstReq.date.toISOString().split("T")[0];
+      }
+      
       let finalReason = reason;
       if (status === "revoked" || status === "rejected") {
         const prefix = currentUser.role === "superadmin"
-          ? `Your booking ${status} by head`
-          : `Your booking ${status} by HOD of department`;
+          ? `Your grouped booking ${status} by head`
+          : `Your grouped booking ${status} by HOD of department`;
         finalReason = reason ? `${prefix}. Reason: ${reason}` : prefix;
       } else if (status === "approved") {
         finalReason = currentUser.role === "superadmin" 
@@ -631,28 +649,15 @@ const updateBatchStatus = async (req, res) => {
           : "Approved by HOD of department";
       }
 
-      if (finalReason) {
-        request.reason = finalReason;
-      }
-      await request.save();
-      updatedCount++;
-
-      if (request.faculty) {
-        const venueName = request.venue ? request.venue.name : "Unknown Venue";
-        let dateString = request.date;
-        if (typeof request.date.toISOString === "function") {
-            dateString = request.date.toISOString().split("T")[0];
-        }
-        await emailService.sendStatusUpdateEmail(
-          request.faculty.email, 
-          request.faculty.name, 
-          status, 
-          finalReason || reason, 
-          venueName, 
-          dateString,
-          request.timeSlot
-        );
-      }
+      await emailService.sendStatusUpdateEmail(
+        firstReq.faculty.email,
+        firstReq.faculty.name,
+        status,
+        finalReason,
+        venueNames,
+        dateString,
+        firstReq.timeSlot
+      );
     }
     
     return res.status(200).json({ success: true, message: `Batch ${status} processed. Updated ${updatedCount} items.`});
