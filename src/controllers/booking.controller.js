@@ -68,8 +68,8 @@ const createBooking = async(req,res)=>{
             for (const tSlot of targetTimeSlots) {
                 const { start, end } = parseRange(tSlot);
                 
-                // Check for overlapping bookings
-                const conflict = await bookingModel.findOne({
+                // Check for overlapping bookings - prioritising approved ones for conflict flag
+                const conflicts = await bookingModel.find({
                     venue: venueId,
                     date: date,
                     status: { $in: ["approved", "pending"] },
@@ -78,17 +78,18 @@ const createBooking = async(req,res)=>{
                     ]
                 });
 
-                if (conflict) {
-                    // If it's the SAME faculty, block it (unless it's a different batch, but usually duplicates are bad)
-                    if (conflict.faculty.toString() === req.user.userId.toString()) {
-                         return res.status(400).json({
+                if (conflicts.length > 0) {
+                    // Check if user already has a booking
+                    const ownBooking = conflicts.find(c => c.faculty.toString() === req.user.userId.toString());
+                    if (ownBooking) {
+                        return res.status(400).json({
                             success: false,
-                            message: `You already have a ${conflict.status} booking for this time.`
+                            message: `You already have a ${ownBooking.status} booking for this time.`
                         });
                     }
                     
-                    // If it's an approved booking by someone else, we mark it as conflict but allow it
-                    if (conflict.status === "approved") {
+                    // If any are approved, it's a conflict
+                    if (conflicts.some(c => c.status === "approved")) {
                         conflictFound = true;
                     }
                 }
@@ -109,6 +110,25 @@ const createBooking = async(req,res)=>{
 
         const batchId = crypto.randomBytes(8).toString("hex");
         const venueNames = existingVenues.map(v => v.venue.name);
+        let firstConflictFaculty = "Unknown Faculty";
+        
+        // Find the name of the person being conflicted with
+        for (const ev of existingVenues) {
+            if (ev.isConflict) {
+               const c = await bookingModel.findOne({
+                   venue: ev.venue._id,
+                   date,
+                   status: "approved",
+                   $or: [
+                       { startTime: { $lt: parseRange(targetTimeSlots[0]).end }, endTime: { $gt: parseRange(targetTimeSlots[0]).start } }
+                   ]
+               }).populate("faculty", "name");
+               if (c && c.faculty) {
+                   firstConflictFaculty = c.faculty.name;
+                   break;
+               }
+            }
+        }
 
         // 2. Create bookings
         for (let i = 0; i < targetVenues.length; i++) {
@@ -136,22 +156,36 @@ const createBooking = async(req,res)=>{
         const adminQuery = {
             $or: [
                 { role: "superadmin" },
-                { role: "admin", department: { $in: existingVenues.map(v => v.department) } }
+                { role: "admin", department: { $in: existingVenues.map(v => v.venue.department) } }
             ]
         };
         
         const admins = await userModel.find(adminQuery).select("email");
+        const adminEmails = admins.map(a => a.email);
         
-        if (admins.length > 0) {
-            const adminEmails = admins.map(admin => admin.email);
-            await emailService.sendNewBookingAdminNotification(
-                adminEmails,
-                facultyName,
-                venueNames,
-                dateString,
-                targetTimeSlots.join(", "),
-                requirements
-            );
+        if (adminEmails.length > 0) {
+            const timeSlotStr = targetTimeSlots.join(', ');
+            const totalConflict = existingVenues.some(v => v.isConflict);
+            
+            if (totalConflict) {
+                await emailService.sendPriorityBookingAdminNotification(
+                    adminEmails,
+                    facultyName,
+                    firstConflictFaculty,
+                    venueNames,
+                    dateString,
+                    timeSlotStr
+                );
+            } else {
+                await emailService.sendNewBookingAdminNotification(
+                    adminEmails,
+                    facultyName,
+                    venueNames,
+                    dateString,
+                    timeSlotStr,
+                    requirements
+                );
+            }
         }
 
         return res.status(201).json({

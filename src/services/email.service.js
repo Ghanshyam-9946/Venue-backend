@@ -198,6 +198,49 @@ async function sendNewBookingAdminNotification(adminEmails, facultyName, venueNa
   }
 }
 
+// Specialized Revoke/Priority Request Notification
+async function sendPriorityBookingAdminNotification(adminEmails, facultyName, previousFacultyName, venueNames, date, timeSlot) {
+  try {
+    if (!adminEmails || adminEmails.length === 0) return;
+
+    const venues = Array.isArray(venueNames) ? venueNames.join(', ') : venueNames;
+    console.log("📨 Sending priority/revoke request notification for:", venues);
+
+    const info = await transporter.sendMail({
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
+      to: adminEmails.join(','),
+      subject: `[URGENT REVOKE] Priority Request for ${venues}`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eab308; border-radius: 10px; background: #fffbeb;">
+          <h2 style="color: #854d0e;">⚠️ Revoke Request Received</h2>
+          <p>A new priority request has been received that conflicts with an existing allotment.</p>
+          
+          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #fde68a;">
+            <p style="margin: 0; color: #71717a; font-size: 12px; text-transform: uppercase; font-weight: bold;">Current Status</p>
+            <p>You have previously allotted this slot to: <strong>${previousFacultyName}</strong></p>
+            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 10px 0;">
+            <p style="margin: 0; color: #71717a; font-size: 12px; text-transform: uppercase; font-weight: bold;">New Requester</p>
+            <p>Faculty member <strong>${facultyName}</strong> is now requesting this same slot.</p>
+          </div>
+
+          <p><strong>Resource:</strong> ${venues}</p>
+          <p><strong>Date:</strong> ${date}</p>
+          <p><strong>Time Slot:</strong> ${timeSlot}</p>
+
+          <p style="margin-top: 20px; font-weight: bold; color: #854d0e;">Please log in to the admin panel to review and decide whether to revoke the previous booking.</p>
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
+        </div>
+      `
+    });
+
+    console.log("Priority Notification Email sent:", info.messageId);
+    return true;
+  } catch (err) {
+    console.error(" Priority Admin Email error:", err.message);
+    return false;
+  }
+}
+
 // OTP Email
 async function sendOTPEmail(email, otp) {
   try {
@@ -231,5 +274,6 @@ module.exports = {
   sendForgotPasswordEmail,
   sendStatusUpdateEmail,
   sendNewBookingAdminNotification,
+  sendPriorityBookingAdminNotification,
   sendOTPEmail
 }
