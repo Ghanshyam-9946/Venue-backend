@@ -128,24 +128,50 @@ async function sendStatusUpdateEmail(email, name, status, reason, venueName, dat
   try {
     console.log("📨 Sending status update email to:", email);
 
-    let color = "#2563eb"; // Blue for pending/approved
-    if (status === 'rejected' || status === 'revoked') color = "#dc2626"; // Red
+    let htmlContent = "";
 
-    let htmlContent = `
-      <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: ${color}; text-transform: uppercase;">Booking ${status}</h2>
-        <p>Hello <strong>${name}</strong>,</p>
-        <p>Your venue booking request for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>${status}</strong>.</p>`;
+    if (status === 'revoked') {
+       htmlContent = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ef4444; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: #fef2f2; padding: 20px; border-bottom: 2px solid #fee2e2;">
+            <h2 style="color: #991b1b; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              🚨 BOOKING REVOKED
+            </h2>
+          </div>
+          <div style="padding: 24px; background: white;">
+            <p style="color: #1f2937; font-size: 16px; font-weight: 500;">Hello ${name},</p>
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">
+              Please be advised that your booking for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>REVOKED</strong> by the higher authority/HOD to accommodate an urgent priority event.
+            </p>
+            
+            <div style="background: #fff5f5; padding: 20px; border-radius: 8px; border-left: 5px solid #ef4444; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; color: #991b1b; font-size: 11px; text-transform: uppercase; font-weight: bold;">Official Reason</p>
+              <p style="color: #1f2937; font-size: 15px; margin: 0; font-style: italic;">"${reason || "Reason not specified by authority"}"</p>
+            </div>
 
-    if (reason && (status === 'rejected' || status === 'revoked')) {
-      htmlContent += `<div style="background: #fff5f5; padding: 15px; border-left: 4px solid #dc2626; margin: 10px 0; border-radius: 4px;">
-        <strong style="color: #dc2626;">Reason for ${status}:</strong> ${reason}
-      </div>`;
+            <p style="color: #6b7280; font-size: 13px; font-style: italic; margin-top: 20px;">
+              We apologize for any inconvenience caused. Please check for alternative venues or slots.
+            </p>
+
+            <div style="margin-top: 30px; border-top: 1px solid #f3f4f6; pt: 20px; text-align: center;">
+              <p style="font-size: 14px; font-weight: bold; color: #1e3a8a; margin: 0;">Sistec Event Organizer</p>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      let color = "#2563eb"; 
+      if (status === 'rejected') color = "#dc2626";
+
+      htmlContent = `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: ${color}; text-transform: uppercase;">Booking ${status}</h2>
+          <p>Hello <strong>${name}</strong>,</p>
+          <p>Your venue booking request for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>${status}</strong>.</p>
+          ${reason ? `<div style="background: #f8fafc; padding: 15px; border-left: 4px solid ${color}; margin: 10px 0; border-radius: 4px; color: #334155;"><strong>Note:</strong> ${reason}</div>` : ''}
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
+        </div>`;
     }
-
-    htmlContent += `
-      <p>Regards,<br><strong>Sistec event organizer</strong></p>
-    </div>`;
 
     const info = await transporter.sendMail({
       from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
@@ -209,28 +235,40 @@ async function sendPriorityBookingAdminNotification(adminEmails, facultyName, pr
     const info = await transporter.sendMail({
       from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: adminEmails.join(','),
-      subject: `[URGENT REVOKE] Priority Request for ${venues}`,
+      subject: `[URGENT] Priority Request for ${venues}`,
       html: `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eab308; border-radius: 10px; background: #fffbeb;">
-          <h2 style="color: #854d0e;">⚠️ Urgent Priority Request</h2>
-          <p>This venue is <strong>already booked</strong>, but faculty member <strong>${facultyName}</strong> still wants it for their event.</p>
-          
-          <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #fde68a;">
-            <p style="margin: 0; color: #71717a; font-size: 11px; text-transform: uppercase; font-weight: bold;">Requester's Stated Reason</p>
-            <p style="font-style: italic; color: #1e293b; font-size: 16px;">"${priorityReason || "Reason not provided"}"</p>
-            
-            <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 15px 0;">
-            
-            <p style="margin: 0; color: #71717a; font-size: 11px; text-transform: uppercase; font-weight: bold;">Conflicting Booking</p>
-            <p>Currently allotted to: <strong>${previousFacultyName}</strong></p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #fde68a; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: #fef3c7; padding: 20px; border-bottom: 2px solid #fde68a;">
+            <h2 style="color: #92400e; margin: 0; display: flex; align-items: center; gap: 10px;">
+              ⚠️ URGENT PRIORITY REQUEST
+            </h2>
           </div>
+          <div style="padding: 24px; background: white;">
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+              A high-priority venue request has been submitted by <strong>${facultyName}</strong> for a slot that is <strong>already booked</strong>.
+            </p>
+            
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 5px solid #eab308; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; color: #71717a; font-size: 11px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">Priority Justification</p>
+              <p style="font-style: italic; color: #1e293b; font-size: 15px; margin: 0;">"${priorityReason || "No reason provided"}"</p>
+            </div>
 
-          <p><strong>Venue:</strong> ${venues}</p>
-          <p><strong>Date:</strong> ${date}</p>
-          <p><strong>Time Slot:</strong> ${timeSlot}</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+              <tr>
+                <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Event Details:</td>
+                <td style="padding: 10px 0; color: #111827; font-size: 14px; font-weight: 600;">${venues} | ${date} (${timeSlot})</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">Current Holder:</td>
+                <td style="padding: 10px 0; color: #dc2626; font-size: 14px; font-weight: 600;">${previousFacultyName}</td>
+              </tr>
+            </table>
 
-          <p style="margin-top: 20px; font-weight: bold; color: #854d0e;">If this request has higher priority, you can approve it from the admin panel, which will automatically notify and revoke the previous booking.</p>
-          <p>Regards,<br><strong>Sistec event organizer</strong></p>
+            <div style="margin-top: 30px; text-align: center;">
+              <p style="font-size: 13px; color: #6b7280; margin-bottom: 15px;">If this event takes precedence, please log in as Admin to approve/revoke.</p>
+              <p style="font-size: 14px; font-weight: bold; color: #1e40af;">Sistec Event Organizer Team</p>
+            </div>
+          </div>
         </div>
       `
     });
