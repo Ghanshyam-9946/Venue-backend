@@ -131,6 +131,13 @@ const createBooking = async(req,res)=>{
         }
 
         // 2. Create bookings
+        const isAdminOfVenue = req.user.role === "admin" && 
+                               existingVenues[0].venue.department.toString() === req.user.department?.toString();
+        
+        // Auto-approve only if HOD is booking their own venue AND there is no conflict with an ALREADY approved booking
+        // If there is an approved conflict, they must still use priority mode (handled via isConflict)
+        const shouldAutoApprove = isAdminOfVenue && !existingVenues.some(v => v.isConflict);
+
         for (let i = 0; i < targetVenues.length; i++) {
             const venueData = existingVenues[i];
             const venueId = targetVenues[i];
@@ -146,6 +153,7 @@ const createBooking = async(req,res)=>{
                     purpose,
                     requirements: requirements || "",
                     batchId,
+                    status: shouldAutoApprove ? "approved" : "pending",
                     isConflict: venueData.isConflict,
                     priorityReason: venueData.isConflict ? priorityReason : ""
                 });
@@ -157,10 +165,13 @@ const createBooking = async(req,res)=>{
         // Find requesting faculty's department to notify their HOD
         const requesterDept = faculty ? faculty.department : null;
 
+        // Collect all relevant HODs (Department head of each venue in the batch)
+        const venueDeptIds = [...new Set(existingVenues.map(v => v.venue.department.toString()))];
+
         const adminQuery = {
             $or: [
                 { role: "superadmin" },
-                { role: "admin", department: { $in: existingVenues.map(v => v.venue.department) } },
+                { role: "admin", department: { $in: venueDeptIds } },
                 requesterDept ? { role: "admin", department: requesterDept } : null
             ].filter(Boolean)
         };
@@ -173,20 +184,46 @@ const createBooking = async(req,res)=>{
             const totalConflict = existingVenues.some(v => v.isConflict);
             
             if (totalConflict) {
+                // Priority request notification to both SuperAdmin and Venue HODs
                 await emailService.sendPriorityBookingAdminNotification(
                     adminEmails,
                     facultyName,
                     firstConflictFaculty,
-                    venueNames,
+                    venueNames.join(", "),
                     dateString,
                     timeSlotStr,
                     priorityReason
                 );
+            } else if (shouldAutoApprove) {
+                // Auto-allocation notification to SuperAdmin
+                // HOD doesn't need an email about their own action, but SuperAdmin might
+                const superAdmins = await userModel.find({ role: "superadmin" }).select("email");
+                if (superAdmins.length > 0) {
+                    await emailService.sendNewBookingAdminNotification(
+                        superAdmins.map(s => s.email),
+                        `HOD ${facultyName} (Auto-Approved)`,
+                        venueNames.join(", "),
+                        dateString,
+                        timeSlotStr,
+                        requirements
+                    );
+                }
+                // Send approval email to the HOD (Requester)
+                await emailService.sendStatusUpdateEmail(
+                    faculty.email,
+                    faculty.name,
+                    "approved",
+                    "Self-allocated (Department Head)",
+                    venueNames.join(", "),
+                    dateString,
+                    timeSlotStr
+                );
             } else {
+                // Normal request notification
                 await emailService.sendNewBookingAdminNotification(
                     adminEmails,
                     facultyName,
-                    venueNames,
+                    venueNames.join(", "),
                     dateString,
                     timeSlotStr,
                     requirements
@@ -196,7 +233,7 @@ const createBooking = async(req,res)=>{
 
         return res.status(201).json({
             success:true,
-            message: (targetVenues.length > 1 || targetTimeSlots.length > 1) ? "Multi-booking request created" : "Booking request created",
+            message: shouldAutoApprove ? "Venue self-allocated successfully" : ((targetVenues.length > 1 || targetTimeSlots.length > 1) ? "Multi-booking request created" : "Booking request created"),
             booking: (targetVenues.length === 1 && targetTimeSlots.length === 1) ? createdBookings[0] : createdBookings
         });
     }
@@ -220,15 +257,16 @@ const getBookedSlots = async (req, res) => {
             return res.status(400).json({ success: false, message: "Venue ID and date are required" });
         }
 
-        const bookedDates = await bookingModel.find({
+        const bookings = await bookingModel.find({
             venue: id,
             date: date,
-            status: "approved"
-        }).select("timeSlot");
+            status: { $in: ["approved", "pending"] }
+        }).select("timeSlot status");
+        
+        const bookedSlots = bookings.filter(b => b.status === "approved").map(b => b.timeSlot);
+        const pendingSlots = bookings.filter(b => b.status === "pending").map(b => b.timeSlot);
 
-        const slots = bookedDates.map(b => b.timeSlot);
-
-        return res.status(200).json({ success: true, bookedSlots: slots });
+        return res.status(200).json({ success: true, bookedSlots, pendingSlots });
     } catch (error) {
         console.log("Get booked slots error", error);
         return res.status(500).json({ success: false, message: "Something went wrong" });

@@ -135,7 +135,8 @@ async function userLoginController(req, res) {
   const token = jwt.sign(
     {
       userId: user._id,
-      role: user.role
+      role: user.role,
+      department: user.department
     },
     process.env.JWT_SECRET,
     {
