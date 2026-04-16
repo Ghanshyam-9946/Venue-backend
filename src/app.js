@@ -9,6 +9,8 @@ const app = express()
 
 let allowedOrigins = [
     (process.env.FRONTEND_URL || 'https://venue-frontend-indol.vercel.app').trim(),
+    'https://seo.sistec.ac.in',
+    'http://seo.sistec.ac.in',
     'http://localhost:5173',
     'http://localhost:3000'
 ];

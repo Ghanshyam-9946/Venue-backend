@@ -143,7 +143,12 @@ async function userLoginController(req, res) {
     }
   );
 
-  res.cookie("token", token);
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: true, // Required for sameSite: 'none'
+    sameSite: 'none',
+    maxAge: 3 * 24 * 60 * 60 * 1000 // 3 days
+  });
 
   res.status(200).json({
     user: {
@@ -171,7 +176,11 @@ async function userLogoutController(req, res) {
   }
 
   await tokenBlacklistModel.create({ token: token });
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none'
+  });
   res.status(200).json({
     message: "User logged out successfully"
   })
