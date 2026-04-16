@@ -131,16 +131,17 @@ const createBooking = async(req,res)=>{
         }
 
         // 2. Create bookings
-        const isAdminOfVenue = req.user.role === "admin" && 
-                               existingVenues[0].venue.department.toString() === req.user.department?.toString();
-        
-        // Auto-approve only if HOD is booking their own venue AND there is no conflict with an ALREADY approved booking
-        // If there is an approved conflict, they must still use priority mode (handled via isConflict)
-        const shouldAutoApprove = isAdminOfVenue && !existingVenues.some(v => v.isConflict);
-
         for (let i = 0; i < targetVenues.length; i++) {
             const venueData = existingVenues[i];
             const venueId = targetVenues[i];
+            
+            // Per-venue check for HOD auto-approval
+            const isAdminOfThisVenue = req.user.role === "admin" && 
+                                       venueData.venue.department?.toString() === req.user.department?.toString();
+            
+            // Auto-approve only if HOD is booking their OWN venue AND there is no conflict with an ALREADY approved booking
+            const shouldAutoApproveThis = isAdminOfThisVenue && !venueData.isConflict;
+
             for (const tSlot of targetTimeSlots) {
                 const { start, end } = parseRange(tSlot);
                 const booking = await bookingModel.create({
@@ -153,7 +154,7 @@ const createBooking = async(req,res)=>{
                     purpose,
                     requirements: requirements || "",
                     batchId,
-                    status: shouldAutoApprove ? "approved" : "pending",
+                    status: shouldAutoApproveThis ? "approved" : "pending",
                     isConflict: venueData.isConflict,
                     priorityReason: venueData.isConflict ? priorityReason : ""
                 });
@@ -162,11 +163,8 @@ const createBooking = async(req,res)=>{
         }
 
         // 3. Notify admins (One email per batch)
-        // Find requesting faculty's department to notify their HOD
         const requesterDept = faculty ? faculty.department : null;
-
-        // Collect all relevant HODs (Department head of each venue in the batch)
-        const venueDeptIds = [...new Set(existingVenues.map(v => v.venue.department.toString()))];
+        const venueDeptIds = [...new Set(existingVenues.map(v => v.venue.department?.toString()))].filter(Boolean);
 
         const adminQuery = {
             $or: [
@@ -182,6 +180,7 @@ const createBooking = async(req,res)=>{
         if (adminEmails.length > 0) {
             const timeSlotStr = targetTimeSlots.join(', ');
             const totalConflict = existingVenues.some(v => v.isConflict);
+            const hasAutoApproved = createdBookings.some(b => b.status === "approved" && req.user.role === "admin");
             
             if (totalConflict) {
                 // Priority request notification to both SuperAdmin and Venue HODs
@@ -194,7 +193,7 @@ const createBooking = async(req,res)=>{
                     timeSlotStr,
                     priorityReason
                 );
-            } else if (shouldAutoApprove) {
+            } else if (hasAutoApproved) {
                 // Auto-allocation notification to SuperAdmin
                 // HOD doesn't need an email about their own action, but SuperAdmin might
                 const superAdmins = await userModel.find({ role: "superadmin" }).select("email");
@@ -208,7 +207,7 @@ const createBooking = async(req,res)=>{
                         requirements
                     );
                 }
-                // Send approval email to the HOD (Requester)
+                // Send approval email to the requester (HOD)
                 await emailService.sendStatusUpdateEmail(
                     faculty.email,
                     faculty.name,
@@ -233,7 +232,7 @@ const createBooking = async(req,res)=>{
 
         return res.status(201).json({
             success:true,
-            message: shouldAutoApprove ? "Venue self-allocated successfully" : ((targetVenues.length > 1 || targetTimeSlots.length > 1) ? "Multi-booking request created" : "Booking request created"),
+            message: createdBookings.some(b => b.status === "approved") ? "Booking allocated (Auto-Approve applied)" : ((targetVenues.length > 1 || targetTimeSlots.length > 1) ? "Multi-booking request created" : "Booking request created"),
             booking: (targetVenues.length === 1 && targetTimeSlots.length === 1) ? createdBookings[0] : createdBookings
         });
     }
