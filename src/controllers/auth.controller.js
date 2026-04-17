@@ -115,7 +115,7 @@ async function sendOTPController(req, res) {
 async function userLoginController(req, res) {
   const { email, password } = req.body;
 
-  const user = await userModel.findOne({ email }).select("+password");
+  const user = await userModel.findOne({ email }).select("+password").populate("department", "name");
 
   if (!user) {
     return res.status(401).json({
@@ -160,7 +160,8 @@ async function userLoginController(req, res) {
       role: user.role,
       isFirstLogin: user.isFirstLogin,
       mobile: user.mobile,
-      avatar: user.avatar
+      avatar: user.avatar,
+      department: user.department
     },
     token
   });
