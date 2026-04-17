@@ -345,7 +345,11 @@ const getAllRequests = async (req, res) => {
     const currentUser = await userModel.findById(req.user.userId);
     let requests = await bookingModel
       .find()
-      .populate("faculty", "name email")
+      .populate({
+        path: "faculty",
+        select: "name email designation department",
+        populate: { path: "department", select: "name" }
+      })
       .populate({
         path: "venue",
         select: "name location department",
@@ -693,7 +697,7 @@ const getAllHistoryStatement = async (req, res) => {
     let bookings = await bookingModel.find(query)
       .populate({
         path: "faculty",
-        select: "name email department",
+        select: "name email designation department",
         populate: { path: "department", select: "name" }
       })
       .populate({

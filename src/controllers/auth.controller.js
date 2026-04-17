@@ -7,10 +7,10 @@ const otpModel = require("../models/otp.model");
 
 async function userRegisterController(req, res) {
   try {
-    const { name, email, password, department, otp } = req.body;
+    const { name, email, password, department, designation, otp } = req.body;
 
-    if (!name || !email || !password || !department || !otp) {
-      return res.status(400).json({ success: false, message: "All fields including OTP are required" });
+    if (!name || !email || !password || !department || !designation || !otp) {
+      return res.status(400).json({ success: false, message: "All fields including OTP and Designation are required" });
     }
 
     if (!email.endsWith("@sistec.ac.in")) {
@@ -33,6 +33,7 @@ async function userRegisterController(req, res) {
       name,
       password,
       department,
+      designation,
       role: "faculty",
       isFirstLogin: false
     });

@@ -135,12 +135,14 @@ const createBooking = async(req,res)=>{
             const venueData = existingVenues[i];
             const venueId = targetVenues[i];
             
-            // Per-venue check for HOD auto-approval
+            // Per-venue check for auto-approval
             const isAdminOfThisVenue = req.user.role === "admin" && 
                                        venueData.venue.department?.toString() === req.user.department?.toString();
+            const isSuperAdmin = req.user.role === "superadmin";
             
-            // Auto-approve only if HOD is booking their OWN venue AND there is no conflict with an ALREADY approved booking
-            const shouldAutoApproveThis = isAdminOfThisVenue && !venueData.isConflict;
+            // Auto-approve if HOD is booking their OWN venue OR if SuperAdmin is booking ANY venue
+            // Provided there is no conflict with an ALREADY approved booking
+            const shouldAutoApproveThis = (isAdminOfThisVenue || isSuperAdmin) && !venueData.isConflict;
 
             for (const tSlot of targetTimeSlots) {
                 const { start, end } = parseRange(tSlot);
