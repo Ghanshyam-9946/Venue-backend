@@ -1,4 +1,4 @@
-﻿const bookingModel = require("../models/booking.model")
+const bookingModel = require("../models/booking.model")
 const venueModel = require("../models/venue.model")
 const userModel = require("../models/user.model")
 const emailService = require("../services/email.service")
@@ -372,35 +372,50 @@ const checkAndUpdateBookingStatus = async (booking) => {
 
 const getWeeklySchedule = async (req, res) => {
     try {
-        const today = new Date();
-        // Get IST date string (YYYY-MM-DD)
-        const toIST = (d) => {
-            const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
-            return ist.toISOString().split('T')[0];
-        };
+        const now = new Date();
+        
+        // Start of today in UTC (midnight)
+        const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
 
-        const startDate = toIST(today);
-
-        // Find next Saturday (or today if today is Saturday)
-        const dayOfWeek = today.getDay(); // 0=Sun, 6=Sat
+        // Find next Saturday (IST offset considered)
+        const dayOfWeek = now.getDay(); // based on local server time
         const daysUntilSat = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
-        const saturday = new Date(today.getTime() + daysUntilSat * 24 * 60 * 60 * 1000);
-        const endDate = toIST(saturday);
+        const saturdayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilSat, 23, 59, 59));
 
         const bookings = await bookingModel.find({
             status: 'approved',
-            date: { $gte: startDate, $lte: endDate }
+            date: { $gte: todayStart, $lte: saturdayEnd }
         })
         .populate('venue', 'name location')
         .populate('faculty', 'name designation')
         .select('venue faculty date timeSlot purpose')
         .sort({ date: 1 });
 
+        // Normalize date to YYYY-MM-DD IST string for the frontend
+        const normalizedBookings = bookings.map(b => {
+            const d = new Date(b.date);
+            // Convert to IST (UTC+5:30)
+            const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+            const isoDate = ist.toISOString().split('T')[0];
+            return {
+                _id: b._id,
+                venue: b.venue,
+                faculty: b.faculty,
+                date: isoDate,
+                timeSlot: b.timeSlot,
+                purpose: b.purpose
+            };
+        });
+
+        // Build start/end as IST strings for the frontend to build tabs
+        const istToday = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+        const istSat = new Date(saturdayEnd.getTime() + 5.5 * 60 * 60 * 1000);
+
         return res.status(200).json({
             success: true,
-            startDate,
-            endDate,
-            bookings
+            startDate: istToday.toISOString().split('T')[0],
+            endDate: istSat.toISOString().split('T')[0],
+            bookings: normalizedBookings
         });
     } catch (error) {
         console.log('Weekly schedule error:', error);
@@ -434,9 +449,20 @@ const getMyBookings = async (req, res) => {
   }
 };
 
+const getPublicVenues = async (req, res) => {
+    try {
+        const venues = await venueModel.find().populate("department", "name").select("name capacity location image features type");
+        return res.status(200).json({ success: true, venues });
+    } catch (error) {
+        console.log("PUBLIC VENUES ERROR:", error);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
 module.exports = {
     createBooking,
     getMyBookings,
     getBookedSlots,
-    getWeeklySchedule
+    getWeeklySchedule,
+    getPublicVenues
 };
