@@ -1,4 +1,4 @@
-const bookingModel = require("../models/booking.model")
+﻿const bookingModel = require("../models/booking.model")
 const venueModel = require("../models/venue.model")
 const userModel = require("../models/user.model")
 const emailService = require("../services/email.service")
@@ -370,6 +370,44 @@ const checkAndUpdateBookingStatus = async (booking) => {
     return booking;
 };
 
+const getWeeklySchedule = async (req, res) => {
+    try {
+        const today = new Date();
+        // Get IST date string (YYYY-MM-DD)
+        const toIST = (d) => {
+            const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+            return ist.toISOString().split('T')[0];
+        };
+
+        const startDate = toIST(today);
+
+        // Find next Saturday (or today if today is Saturday)
+        const dayOfWeek = today.getDay(); // 0=Sun, 6=Sat
+        const daysUntilSat = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
+        const saturday = new Date(today.getTime() + daysUntilSat * 24 * 60 * 60 * 1000);
+        const endDate = toIST(saturday);
+
+        const bookings = await bookingModel.find({
+            status: 'approved',
+            date: { $gte: startDate, $lte: endDate }
+        })
+        .populate('venue', 'name location')
+        .populate('faculty', 'name designation')
+        .select('venue faculty date timeSlot purpose')
+        .sort({ date: 1 });
+
+        return res.status(200).json({
+            success: true,
+            startDate,
+            endDate,
+            bookings
+        });
+    } catch (error) {
+        console.log('Weekly schedule error:', error);
+        return res.status(500).json({ success: false, message: 'Something went wrong' });
+    }
+};
+
 const getMyBookings = async (req, res) => {
   try {
     const bookings = await bookingModel
@@ -399,5 +437,6 @@ const getMyBookings = async (req, res) => {
 module.exports = {
     createBooking,
     getMyBookings,
-    getBookedSlots
+    getBookedSlots,
+    getWeeklySchedule
 };

@@ -44,23 +44,76 @@ async function sendRegistrationEmail(email, name) {
     const info = await transporter.sendMail({
       from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "Welcome to Sistec Event Organizer",
+      subject: "🎉 Welcome to Sistec Event Organizer — You're Registered!",
       html: `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #2563eb;">Hello ${name}</h2>
-          <p>Welcome to <strong>Venue Booking Automated systems</strong>!</p>
-          <p>Your account has been created successfully. You can now log in and start booking venues.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p>Regards,<br><strong>Sistec event organizer</strong></p>
-          <p style="font-size: 12px; color: #666;">This is an automated message. Please do not reply.</p>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #10b981; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08);">
+          
+          <!-- HEADER -->
+          <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 30px 24px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">
+              🎉 Congratulations!
+            </h1>
+            <p style="color: #bfdbfe; margin: 8px 0 0 0; font-size: 14px; font-weight: 500;">
+              You are now part of the Sistec Event Organizer
+            </p>
+          </div>
+
+          <!-- BODY -->
+          <div style="padding: 32px 28px; background: white;">
+            <p style="color: #1f2937; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">
+              Hello ${name}, 👋
+            </p>
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.7; margin: 0 0 20px 0;">
+              Your registration was <strong style="color: #059669;">successful</strong>! You now have access to the 
+              <strong>Sistec Venue Booking System</strong> — your one-stop platform to discover, reserve, 
+              and manage college venues and resources with ease.
+            </p>
+
+            <!-- SUCCESS BOX -->
+            <div style="background: #f0fdf4; padding: 20px; border-radius: 10px; border-left: 5px solid #10b981; margin: 20px 0;">
+              <p style="margin: 0 0 6px 0; color: #065f46; font-size: 11px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.08em;">
+                ✅ Account Activated
+              </p>
+              <p style="color: #1f2937; font-size: 15px; margin: 0; line-height: 1.6;">
+                You can now <strong>log in</strong>, browse available venues, submit booking requests, 
+                and track your booking status — all in one place.
+              </p>
+            </div>
+
+            <!-- WHAT YOU CAN DO -->
+            <p style="color: #374151; font-size: 14px; font-weight: 700; margin: 24px 0 10px 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              What You Can Do:
+            </p>
+            <ul style="color: #4b5563; font-size: 14px; line-height: 2; padding-left: 20px; margin: 0 0 24px 0;">
+              <li>📅 Browse and book available venues</li>
+              <li>⏰ Select time slots that suit your schedule</li>
+              <li>📋 Track your booking status in real time</li>
+              <li>🔔 Get email alerts for approvals and updates</li>
+            </ul>
+
+            <p style="color: #6b7280; font-size: 13px; font-style: italic; margin: 20px 0 0 0;">
+              If you did not register for this account, please contact the administration immediately.
+            </p>
+          </div>
+
+          <!-- FOOTER -->
+          <div style="background: #f8fafc; padding: 16px 28px; border-top: 1px solid #e5e7eb; text-align: center;">
+            <p style="font-size: 14px; font-weight: 800; color: #1e3a8a; margin: 0 0 4px 0;">
+              Sistec Event Organizer
+            </p>
+            <p style="font-size: 11px; color: #9ca3af; margin: 0;">
+              This is an automated message. Please do not reply.
+            </p>
+          </div>
+
         </div>
       `
     });
 
-    console.log(" Registration Email sent:", info.messageId);
+    console.log("✅ Registration Email sent:", info.messageId);
     return true;
   } catch (err) {
-    console.error(" Registration Email error:", err.message);
+    console.error("❌ Registration Email error:", err.message);
     return false;
   }
 }
