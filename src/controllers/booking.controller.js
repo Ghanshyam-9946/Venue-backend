@@ -308,10 +308,17 @@ const getBookedSlots = async (req, res) => {
             venue: id,
             date: date,
             status: { $in: ["approved", "pending"] }
-        }).select("timeSlot status");
+        }).select("timeSlot status isConflict");
         
-        const bookedSlots = bookings.filter(b => b.status === "approved").map(b => b.timeSlot);
-        const pendingSlots = bookings.filter(b => b.status === "pending").map(b => b.timeSlot);
+        // Approved slots + priority (conflict) pending slots are fully booked — no one else can select them
+        const bookedSlots = bookings
+            .filter(b => b.status === "approved" || (b.status === "pending" && b.isConflict))
+            .map(b => b.timeSlot);
+
+        // Normal pending slots (not priority) — shown as pending/dashed
+        const pendingSlots = bookings
+            .filter(b => b.status === "pending" && !b.isConflict)
+            .map(b => b.timeSlot);
 
         return res.status(200).json({ success: true, bookedSlots, pendingSlots });
     } catch (error) {
