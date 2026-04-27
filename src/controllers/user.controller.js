@@ -17,7 +17,7 @@ const getProfile = async (req, res) => {
 // Update User Profile
 const updateProfile = async (req, res) => {
   try {
-    const { name, mobile } = req.body;
+    const { name, mobile, designation } = req.body;
     const userId = req.user.userId;
 
     const user = await userModel.findById(userId);
@@ -26,6 +26,7 @@ const updateProfile = async (req, res) => {
     // Update text fields
     if (name) user.name = name;
     if (mobile) user.mobile = mobile;
+    if (designation !== undefined) user.designation = designation;
 
     // Handle profile picture update if a file is uploaded
     if (req.file) {
@@ -54,7 +55,8 @@ const updateProfile = async (req, res) => {
         role: user.role,
         mobile: user.mobile,
         avatar: user.avatar,
-        department: user.department
+        department: user.department,
+        designation: user.designation
       }
     });
   } catch (error) {
