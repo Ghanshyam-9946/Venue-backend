@@ -25,6 +25,50 @@ const parseRange = (timeSlot) => {
     };
 };
 
+const formatMinutesToTime = (minutes) => {
+    let hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")} ${ampm}`;
+};
+
+const mergeSlots = (slots) => {
+    if (!slots || slots.length === 0) return [];
+    if (slots.length === 1) {
+        const { start, end } = parseRange(slots[0]);
+        return [{ timeSlot: slots[0], startTime: start, endTime: end }];
+    }
+
+    const parsed = slots.map(s => ({
+        original: s,
+        ...parseRange(s)
+    })).sort((a, b) => a.start - b.start);
+
+    const merged = [];
+    let current = parsed[0];
+
+    for (let i = 1; i < parsed.length; i++) {
+        const next = parsed[i];
+        if (next.start <= current.end) {
+            current.end = Math.max(current.end, next.end);
+            const startStr = formatMinutesToTime(current.start);
+            const endStr = formatMinutesToTime(current.end);
+            current.original = `${startStr} - ${endStr}`;
+        } else {
+            merged.push(current);
+            current = next;
+        }
+    }
+    merged.push(current);
+
+    return merged.map(m => ({
+        timeSlot: m.original,
+        startTime: m.start,
+        endTime: m.end
+    }));
+};
+
 const createBooking = async(req,res)=>{
     try{
         const { venue, venues, date, timeSlot, timeSlots, purpose, requirements, priorityReason } = req.body;
@@ -144,15 +188,17 @@ const createBooking = async(req,res)=>{
             // Provided there is no conflict with an ALREADY approved booking
             const shouldAutoApproveThis = (isAdminOfThisVenue || isSuperAdmin) && !venueData.isConflict;
 
-            for (const tSlot of targetTimeSlots) {
-                const { start, end } = parseRange(tSlot);
+            // Merge slots for this venue
+            const mergedVenueSlots = mergeSlots(targetTimeSlots);
+
+            for (const mergedSlot of mergedVenueSlots) {
                 const booking = await bookingModel.create({
                     faculty: req.user.userId,
                     venue: venueId,
                     date,
-                    timeSlot: tSlot,
-                    startTime: start,
-                    endTime: end,
+                    timeSlot: mergedSlot.timeSlot,
+                    startTime: mergedSlot.startTime,
+                    endTime: mergedSlot.endTime,
                     purpose,
                     requirements: requirements || "",
                     batchId,
