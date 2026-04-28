@@ -167,7 +167,7 @@ async function userLoginController(req, res) {
   });
 
   // We can still trigger login email if we want, or remove it. I'll keep it.
-  await emailService.sendLoginEmail(user.email, user.name);
+  // await emailService.sendLoginEmail(user.email, user.name);
 }
 
 async function userLogoutController(req, res) {
