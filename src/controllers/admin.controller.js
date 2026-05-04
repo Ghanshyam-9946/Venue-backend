@@ -300,7 +300,7 @@ const getSingleVenue = async (req, res) => {
 };
 
 const checkAndUpdateBookingStatus = async (booking) => {
-    if (booking.status !== "approved") return booking;
+    if (booking.status !== "approved" && booking.status !== "pending") return booking;
 
     try {
         if (!booking.endTime) {
@@ -331,8 +331,14 @@ const checkAndUpdateBookingStatus = async (booking) => {
         const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
 
         if (istNow.getTime() > localBookingEndTime.getTime()) {
-            booking.status = "completed";
-            await booking.save();
+            if (booking.status === "approved") {
+                booking.status = "completed";
+                await booking.save();
+            } else if (booking.status === "pending") {
+                booking.status = "not approved";
+                booking.reason = "Request expired: Not approved/rejected before the scheduled time.";
+                await booking.save();
+            }
         }
     } catch (e) {
         console.error("Error checking booking status:", e);

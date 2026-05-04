@@ -98,7 +98,18 @@ const createBooking = async(req,res)=>{
 
         const existingVenues = [];
         
-        // 1. Validate all venues exist and have no conflicts
+        // 1. Validate all venues and dates exist and have no conflicts
+        const targetDates = Array.isArray(date) ? date : (date ? [date] : []);
+        
+        if (targetVenues.length === 0 || targetDates.length === 0 || targetTimeSlots.length === 0 || !purpose) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields are required"
+            });
+        }
+
+        const venueDateConflicts = []; // To track conflicts per venue-date combination
+        
         for (const venueId of targetVenues) {
             const existingVenue = await venueModel.findById(venueId);
             if(!existingVenue){
@@ -108,94 +119,59 @@ const createBooking = async(req,res)=>{
                 })
             };
             
-            let conflictFound = false;
-            for (const tSlot of targetTimeSlots) {
-                const { start, end } = parseRange(tSlot);
-                
-                // Check for overlapping bookings - prioritising approved ones for conflict flag
-                const conflicts = await bookingModel.find({
-                    venue: venueId,
-                    date: date,
-                    status: { $in: ["approved", "pending"] },
-                    $or: [
-                        { startTime: { $lt: end }, endTime: { $gt: start } }
-                    ]
-                });
-
-                if (conflicts.length > 0) {
-                    // Check if user already has a booking
-                    const ownBooking = conflicts.find(c => c.faculty.toString() === req.user.userId.toString());
-                    if (ownBooking) {
-                        return res.status(400).json({
-                            success: false,
-                            message: `You already have a ${ownBooking.status} booking for this time.`
-                        });
-                    }
+            for (const d of targetDates) {
+                let conflictFound = false;
+                for (const tSlot of targetTimeSlots) {
+                    const { start, end } = parseRange(tSlot);
                     
-                    // If any are approved, it's a conflict
-                    if (conflicts.some(c => c.status === "approved")) {
-                        conflictFound = true;
+                    const conflicts = await bookingModel.find({
+                        venue: venueId,
+                        date: d,
+                        status: { $in: ["approved", "pending"] },
+                        $or: [
+                            { startTime: { $lt: end }, endTime: { $gt: start } }
+                        ]
+                    });
+
+                    if (conflicts.length > 0) {
+                        const ownBooking = conflicts.find(c => c.faculty.toString() === req.user.userId.toString());
+                        if (ownBooking) {
+                            return res.status(400).json({
+                                success: false,
+                                message: `You already have a ${ownBooking.status} booking for ${new Date(d).toDateString()} at this time.`
+                            });
+                        }
+                        
+                        if (conflicts.some(c => c.status === "approved")) {
+                            conflictFound = true;
+                        }
                     }
                 }
+                venueDateConflicts.push({ venue: existingVenue, date: d, isConflict: conflictFound });
             }
-            existingVenues.push({ venue: existingVenue, isConflict: conflictFound });
         }
 
         const createdBookings = [];
-        
-        // Fetch faculty name for email
-        const faculty = await userModel.findById(req.user.userId);
-        const facultyName = faculty ? faculty.name : "Unknown Faculty";
-        
-        let dateString = date;
-        if (typeof date.toISOString === "function" || date instanceof Date) {
-            dateString = new Date(date).toISOString().split("T")[0];
-        }
-
         const batchId = crypto.randomBytes(8).toString("hex");
-        const venueNames = existingVenues.map(v => v.venue.name);
-        let firstConflictFaculty = "Unknown Faculty";
         
-        // Find the name of the person being conflicted with
-        for (const ev of existingVenues) {
-            if (ev.isConflict) {
-               const c = await bookingModel.findOne({
-                   venue: ev.venue._id,
-                   date,
-                   status: "approved",
-                   $or: [
-                       { startTime: { $lt: parseRange(targetTimeSlots[0]).end }, endTime: { $gt: parseRange(targetTimeSlots[0]).start } }
-                   ]
-               }).populate("faculty", "name");
-               if (c && c.faculty) {
-                   firstConflictFaculty = c.faculty.name;
-                   break;
-               }
-            }
-        }
-
-        // 2. Create bookings
-        for (let i = 0; i < targetVenues.length; i++) {
-            const venueData = existingVenues[i];
-            const venueId = targetVenues[i];
+        // 2. Create bookings for each venue and each date
+        for (const vdc of venueDateConflicts) {
+            const venueId = vdc.venue._id;
+            const d = vdc.date;
             
-            // Per-venue check for auto-approval
             const isAdminOfThisVenue = req.user.role === "admin" && 
-                                       venueData.venue.department?.toString() === req.user.department?.toString();
+                                       vdc.venue.department?.toString() === req.user.department?.toString();
             const isSuperAdmin = req.user.role === "superadmin";
             
-            // Auto-approve if HOD is booking their OWN venue OR if SuperAdmin is booking ANY venue
-            // Provided there is no conflict with an ALREADY approved booking
-            const shouldAutoApproveThis = (isAdminOfThisVenue || isSuperAdmin) && !venueData.isConflict;
+            const shouldAutoApproveThis = (isAdminOfThisVenue || isSuperAdmin) && !vdc.isConflict;
 
-            // Merge slots for this venue
             const mergedVenueSlots = mergeSlots(targetTimeSlots);
 
             for (const mergedSlot of mergedVenueSlots) {
                 const booking = await bookingModel.create({
                     faculty: req.user.userId,
                     venue: venueId,
-                    date,
+                    date: d,
                     timeSlot: mergedSlot.timeSlot,
                     startTime: mergedSlot.startTime,
                     endTime: mergedSlot.endTime,
@@ -203,16 +179,38 @@ const createBooking = async(req,res)=>{
                     requirements: requirements || "",
                     batchId,
                     status: shouldAutoApproveThis ? "approved" : "pending",
-                    isConflict: venueData.isConflict,
-                    priorityReason: venueData.isConflict ? priorityReason : ""
+                    isConflict: vdc.isConflict,
+                    priorityReason: vdc.isConflict ? priorityReason : ""
                 });
                 createdBookings.push(booking);
             }
         }
 
-        // 3. Notify admins (One email per batch)
+        // 3. Notify admins
+        const faculty = await userModel.findById(req.user.userId);
+        const facultyName = faculty ? faculty.name : "Unknown Faculty";
+        const venueNames = [...new Set(venueDateConflicts.map(vdc => vdc.venue.name))];
+        const dateStrings = [...new Set(targetDates.map(d => new Date(d).toISOString().split("T")[0]))];
         const requesterDept = faculty ? faculty.department : null;
-        const venueDeptIds = [...new Set(existingVenues.map(v => v.venue.department?.toString()))].filter(Boolean);
+        const venueDeptIds = [...new Set(venueDateConflicts.map(vdc => vdc.venue.department?.toString()))].filter(Boolean);
+        const dateString = dateStrings.join(", ");
+        const totalConflict = venueDateConflicts.some(vdc => vdc.isConflict);
+        
+        let firstConflictFaculty = "Unknown Faculty";
+        if (totalConflict) {
+            const conflictEntry = venueDateConflicts.find(vdc => vdc.isConflict);
+            const c = await bookingModel.findOne({
+                venue: conflictEntry.venue._id,
+                date: conflictEntry.date,
+                status: "approved",
+                $or: [
+                    { startTime: { $lt: parseRange(targetTimeSlots[0]).end }, endTime: { $gt: parseRange(targetTimeSlots[0]).start } }
+                ]
+            }).populate("faculty", "name");
+            if (c && c.faculty) {
+                firstConflictFaculty = c.faculty.name;
+            }
+        }
 
         const adminQuery = {
             $or: [
@@ -227,11 +225,10 @@ const createBooking = async(req,res)=>{
         
         if (adminEmails.length > 0) {
             const timeSlotStr = targetTimeSlots.join(', ');
-            const totalConflict = existingVenues.some(v => v.isConflict);
             const hasAutoApproved = createdBookings.some(b => b.status === "approved" && req.user.role === "admin");
             
             if (totalConflict) {
-                // Priority request notification to both SuperAdmin and Venue HODs
+                // Priority request notification
                 await emailService.sendPriorityBookingAdminNotification(
                     adminEmails,
                     facultyName,
@@ -242,8 +239,7 @@ const createBooking = async(req,res)=>{
                     priorityReason
                 );
             } else if (hasAutoApproved) {
-                // Auto-allocation notification to SuperAdmin
-                // HOD doesn't need an email about their own action, but SuperAdmin might
+                // Auto-allocation notification
                 const superAdmins = await userModel.find({ role: "superadmin" }).select("email");
                 if (superAdmins.length > 0) {
                     await emailService.sendNewBookingAdminNotification(
@@ -328,7 +324,7 @@ const getBookedSlots = async (req, res) => {
 }
 
 const checkAndUpdateBookingStatus = async (booking) => {
-    if (booking.status !== "approved") return booking;
+    if (booking.status !== "approved" && booking.status !== "pending") return booking;
 
     try {
         if (!booking.endTime) {
@@ -360,9 +356,16 @@ const checkAndUpdateBookingStatus = async (booking) => {
         const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
 
         if (istNow.getTime() > localBookingEndTime.getTime()) {
-            booking.status = "completed";
-            await booking.save();
-            console.log(`Booking ${booking._id} marked as completed.`);
+            if (booking.status === "approved") {
+                booking.status = "completed";
+                await booking.save();
+                console.log(`Booking ${booking._id} marked as completed.`);
+            } else if (booking.status === "pending") {
+                booking.status = "not approved";
+                booking.reason = "Request expired: Not approved/rejected before the scheduled time.";
+                await booking.save();
+                console.log(`Booking ${booking._id} marked as not approved.`);
+            }
         }
     } catch (e) {
         console.error("Error checking booking status:", e);
@@ -377,14 +380,12 @@ const getWeeklySchedule = async (req, res) => {
         // Start of today in UTC (midnight)
         const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
 
-        // Find next Saturday (IST offset considered)
-        const dayOfWeek = now.getDay(); // based on local server time
-        const daysUntilSat = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
-        const saturdayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilSat, 23, 59, 59));
+        // Find next 30 days
+        const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 30, 23, 59, 59));
 
         const bookings = await bookingModel.find({
             status: 'approved',
-            date: { $gte: todayStart, $lte: saturdayEnd }
+            date: { $gte: todayStart, $lte: monthEnd }
         })
         .populate('venue', 'name location')
         .populate('faculty', 'name designation')
@@ -409,12 +410,12 @@ const getWeeklySchedule = async (req, res) => {
 
         // Build start/end as IST strings for the frontend to build tabs
         const istToday = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-        const istSat = new Date(saturdayEnd.getTime() + 5.5 * 60 * 60 * 1000);
+        const istMonthEnd = new Date(monthEnd.getTime() + 5.5 * 60 * 60 * 1000);
 
         return res.status(200).json({
             success: true,
             startDate: istToday.toISOString().split('T')[0],
-            endDate: istSat.toISOString().split('T')[0],
+            endDate: istMonthEnd.toISOString().split('T')[0],
             bookings: normalizedBookings
         });
     } catch (error) {
