@@ -19,7 +19,7 @@ const runMigration = async () => {
         console.log('Connected.');
 
         const oldName = "Corporate Training Relation";
-        const newNames = ["Corporate Relations", "Training"];
+        const newNames = ["Corporate Relations", "Training Department"];
 
         // 1. Delete ALL instances of the old name (though it's unique, just to be sure)
         console.log(`Deleting all departments with name: "${oldName}"...`);
