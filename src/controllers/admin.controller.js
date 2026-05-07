@@ -130,9 +130,32 @@ const updateDepartment = async (req, res) => {
 
 const getAllDepartments = async (req, res) => {
   try {
-    const depts = await departmentModel.find().populate("block");
+    const { showHidden } = req.query;
+    
+    // Names of departments to hide from general lists
+    const hiddenNames = ["Corporate Training Relation", "Admin"];
+
+    // Ensure hidden departments exist (Lazy Initialization)
+    for (const name of hiddenNames) {
+      try {
+        const exists = await departmentModel.findOne({ name });
+        if (!exists) {
+          await departmentModel.create({ name, description: "Internal/Special Department" });
+        }
+      } catch (e) {
+        console.error(`Failed to create hidden department ${name}:`, e.message);
+      }
+    }
+
+    let query = {};
+    if (showHidden !== 'true') {
+      query.name = { $nin: hiddenNames };
+    }
+
+    const depts = await departmentModel.find(query).populate("block");
     return res.status(200).json({ success: true, departments: depts });
   } catch(error) {
+    console.log("GET ALL DEPARTMENTS ERROR:", error);
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
