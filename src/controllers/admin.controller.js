@@ -133,11 +133,27 @@ const getAllDepartments = async (req, res) => {
     const { showHidden } = req.query;
 
     // Names of departments to hide from general lists
-    const hiddenNames = ["Corporate Relations", "Training", "Admin"];
+    const hiddenNames = ["Corporate Relations", "Training Department", "Admin"];
 
     // Ensure hidden departments exist (Lazy Initialization)
     for (const name of hiddenNames) {
       try {
+        // Special case: Rename "Training" to "Training Department" if it exists
+        if (name === "Training Department") {
+          const oldTraining = await departmentModel.findOne({ name: "Training" });
+          const newTraining = await departmentModel.findOne({ name: "Training Department" });
+          
+          if (oldTraining && !newTraining) {
+            oldTraining.name = "Training Department";
+            await oldTraining.save();
+            console.log("Renamed 'Training' to 'Training Department'");
+          } else if (oldTraining && newTraining) {
+            // Both exist, maybe merge? For now just delete the old one to avoid confusion
+            await departmentModel.deleteOne({ _id: oldTraining._id });
+            console.log("Deleted old 'Training' as 'Training Department' already exists");
+          }
+        }
+
         const exists = await departmentModel.findOne({ name });
         if (!exists) {
           await departmentModel.create({ name, description: "Internal/Special Department" });
