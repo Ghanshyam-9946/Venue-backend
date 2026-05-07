@@ -147,6 +147,13 @@ const getAllDepartments = async (req, res) => {
       }
     }
 
+    // Explicitly remove the old combined department if it still exists
+    try {
+      await departmentModel.deleteOne({ name: "Corporate Training Relation" });
+    } catch (e) {
+      console.error("Failed to delete old department:", e.message);
+    }
+
     let query = {};
     if (showHidden !== 'true') {
       query.name = { $nin: hiddenNames };
