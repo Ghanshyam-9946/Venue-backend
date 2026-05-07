@@ -17,16 +17,16 @@ const registerFaculty = async (req, res) => {
 
     const isExist = await userModel.findOne({ email });
     if (isExist) {
-        return res.status(422).json({ success: false, message: "Email already exists" });
+      return res.status(422).json({ success: false, message: "Email already exists" });
     }
-    
+
     const user = await userModel.create({
-        email,
-        name,
-        password,
-        department,
-        role: "faculty",
-        isFirstLogin: true
+      email,
+      name,
+      password,
+      department,
+      role: "faculty",
+      isFirstLogin: true
     });
 
     // Send registration email
@@ -103,8 +103,8 @@ const createDepartment = async (req, res) => {
     if (!name) return res.status(400).json({ success: false, message: "Name required" });
     const dept = await departmentModel.create({ name, description, block: blockId });
     return res.status(201).json({ success: true, department: dept });
-  } catch(error) {
-    if(error.code === 11000) return res.status(400).json({ success: false, message: "Department already exists" });
+  } catch (error) {
+    if (error.code === 11000) return res.status(400).json({ success: false, message: "Department already exists" });
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
@@ -122,8 +122,8 @@ const updateDepartment = async (req, res) => {
 
     await dept.save();
     return res.status(200).json({ success: true, department: dept });
-  } catch(error) {
-    if(error.code === 11000) return res.status(400).json({ success: false, message: "Department name already exists" });
+  } catch (error) {
+    if (error.code === 11000) return res.status(400).json({ success: false, message: "Department name already exists" });
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
@@ -131,9 +131,9 @@ const updateDepartment = async (req, res) => {
 const getAllDepartments = async (req, res) => {
   try {
     const { showHidden } = req.query;
-    
+
     // Names of departments to hide from general lists
-    const hiddenNames = ["Corporate Training Relation", "Admin"];
+    const hiddenNames = ["Corporate Relations", "Training", "Admin"];
 
     // Ensure hidden departments exist (Lazy Initialization)
     for (const name of hiddenNames) {
@@ -154,7 +154,7 @@ const getAllDepartments = async (req, res) => {
 
     const depts = await departmentModel.find(query).populate("block");
     return res.status(200).json({ success: true, departments: depts });
-  } catch(error) {
+  } catch (error) {
     console.log("GET ALL DEPARTMENTS ERROR:", error);
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
@@ -165,7 +165,7 @@ const deleteDepartment = async (req, res) => {
     const { id } = req.params;
     await departmentModel.findByIdAndDelete(id);
     return res.status(200).json({ success: true, message: "Department deleted" });
-  } catch(error) {
+  } catch (error) {
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
@@ -175,7 +175,7 @@ const getAllUsers = async (req, res) => {
   try {
     const users = await userModel.find().populate("department");
     return res.status(200).json({ success: true, users });
-  } catch(error) {
+  } catch (error) {
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
@@ -189,7 +189,7 @@ const updateUserRole = async (req, res) => {
 
     if (role) user.role = role;
     if (department !== undefined) {
-       user.department = department === null ? undefined : department;
+      user.department = department === null ? undefined : department;
     }
     await user.save();
     return res.status(200).json({ success: true, user });
@@ -203,7 +203,7 @@ const deleteUser = async (req, res) => {
     const { id } = req.params;
     const user = await userModel.findByIdAndDelete(id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    
+
     return res.status(200).json({ success: true, message: "User deleted successfully" });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Something went wrong" });
@@ -215,12 +215,12 @@ const createVenue = async (req, res) => {
   try {
     const { name, capacity, location, description, type } = req.body;
     let departmentId = req.body.department;
-    
+
     const currentUser = await userModel.findById(req.user.userId);
     if (currentUser.role === 'admin') {
-       departmentId = currentUser.department;
+      departmentId = currentUser.department;
     }
-    
+
     if (!departmentId) return res.status(400).json({ success: false, message: "Department is required. Select a department first." });
     if (!req.file) return res.status(400).json({ success: false, message: "Image is required" });
 
@@ -240,13 +240,13 @@ const updateVenue = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, capacity, location, description, type } = req.body;
-    
+
     const venue = await venueModel.findById(id);
     if (!venue) return res.status(404).json({ success: false, message: "Venue not found" });
 
     const currentUser = await userModel.findById(req.user.userId);
     if (currentUser.role === 'admin' && venue.department?.toString() !== currentUser.department?.toString()) {
-       return res.status(403).json({ success: false, message: "You can only edit venues in your department" });
+      return res.status(403).json({ success: false, message: "You can only edit venues in your department" });
     }
 
     if (name) venue.name = name;
@@ -261,7 +261,7 @@ const updateVenue = async (req, res) => {
     }
 
     if (currentUser.role === 'superadmin' && req.body.department) {
-       venue.department = req.body.department;
+      venue.department = req.body.department;
     }
 
     await venue.save();
@@ -279,7 +279,7 @@ const deleteVenue = async (req, res) => {
 
     const currentUser = await userModel.findById(req.user.userId);
     if (currentUser.role === 'admin' && venue.department?.toString() !== currentUser.department?.toString()) {
-       return res.status(403).json({ success: false, message: "You can only delete venues in your department" });
+      return res.status(403).json({ success: false, message: "You can only delete venues in your department" });
     }
 
     await venueModel.findByIdAndDelete(id);
@@ -294,14 +294,14 @@ const getAllVenues = async (req, res) => {
     const { deptId, manage } = req.query;
     let query = {};
     if (deptId) {
-       query.department = deptId;
+      query.department = deptId;
     }
-    
+
     if (manage === 'true' && req.user) {
-        const currentUser = await userModel.findById(req.user.userId);
-        if (currentUser && currentUser.role === 'admin') {
-            query.department = currentUser.department;
-        }
+      const currentUser = await userModel.findById(req.user.userId);
+      if (currentUser && currentUser.role === 'admin') {
+        query.department = currentUser.department;
+      }
     }
 
     const venues = await venueModel.find(query).populate("department", "name");
@@ -317,56 +317,56 @@ const getSingleVenue = async (req, res) => {
     const venue = await venueModel.findById(id).populate("department", "name");
     if (!venue) return res.status(404).json({ success: false, message: "Venue not found" });
     return res.status(200).json({ success: true, venue });
-  } catch(error) {
+  } catch (error) {
     return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
 
 const checkAndUpdateBookingStatus = async (booking) => {
-    if (booking.status !== "approved" && booking.status !== "pending") return booking;
+  if (booking.status !== "approved" && booking.status !== "pending") return booking;
 
-    try {
-        if (!booking.endTime) {
-            // Fallback for old bookings without endTime field
-            const parts = booking.timeSlot.split(' - ');
-            if (parts.length < 2) return booking;
-            const lastPart = parts[1].replace("Custom: ", "");
-            const [time, ampm] = lastPart.split(' ');
-            let [hours, minutes] = time.split(':').map(Number);
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-            booking.endTime = hours * 60 + minutes;
-        }
-
-        const bookingDate = new Date(booking.date);
-        const endHour = Math.floor(booking.endTime / 60);
-        const endMinute = booking.endTime % 60;
-        
-        const localBookingEndTime = new Date(Date.UTC(
-            bookingDate.getUTCFullYear(),
-            bookingDate.getUTCMonth(),
-            bookingDate.getUTCDate(),
-            endHour,
-            endMinute
-        ));
-
-        const now = new Date();
-        const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-
-        if (istNow.getTime() > localBookingEndTime.getTime()) {
-            if (booking.status === "approved") {
-                booking.status = "completed";
-                await booking.save();
-            } else if (booking.status === "pending") {
-                booking.status = "not approved";
-                booking.reason = "Request expired: Not approved/rejected before the scheduled time.";
-                await booking.save();
-            }
-        }
-    } catch (e) {
-        console.error("Error checking booking status:", e);
+  try {
+    if (!booking.endTime) {
+      // Fallback for old bookings without endTime field
+      const parts = booking.timeSlot.split(' - ');
+      if (parts.length < 2) return booking;
+      const lastPart = parts[1].replace("Custom: ", "");
+      const [time, ampm] = lastPart.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      booking.endTime = hours * 60 + minutes;
     }
-    return booking;
+
+    const bookingDate = new Date(booking.date);
+    const endHour = Math.floor(booking.endTime / 60);
+    const endMinute = booking.endTime % 60;
+
+    const localBookingEndTime = new Date(Date.UTC(
+      bookingDate.getUTCFullYear(),
+      bookingDate.getUTCMonth(),
+      bookingDate.getUTCDate(),
+      endHour,
+      endMinute
+    ));
+
+    const now = new Date();
+    const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+
+    if (istNow.getTime() > localBookingEndTime.getTime()) {
+      if (booking.status === "approved") {
+        booking.status = "completed";
+        await booking.save();
+      } else if (booking.status === "pending") {
+        booking.status = "not approved";
+        booking.reason = "Request expired: Not approved/rejected before the scheduled time.";
+        await booking.save();
+      }
+    }
+  } catch (e) {
+    console.error("Error checking booking status:", e);
+  }
+  return booking;
 };
 
 const getAllRequests = async (req, res) => {
@@ -425,7 +425,7 @@ const updateRequestStatus = async (req, res) => {
     const currentUser = await userModel.findById(req.user.userId);
     if (currentUser.role === 'admin') {
       if (request.venue.department?.toString() !== currentUser.department?.toString()) {
-         return res.status(403).json({ success: false, message: "Unauthorized: You can only manage venues in your department" });
+        return res.status(403).json({ success: false, message: "Unauthorized: You can only manage venues in your department" });
       }
     }
 
@@ -443,8 +443,8 @@ const updateRequestStatus = async (req, res) => {
       if (conflict) {
         // Revoke the conflicting booking
         conflict.status = "revoked";
-        const revokeReason = cancellationReason || (currentUser.role === "superadmin" 
-          ? "Revoked by head due to a priority event request" 
+        const revokeReason = cancellationReason || (currentUser.role === "superadmin"
+          ? "Revoked by head due to a priority event request"
           : "Revoked by HOD due to a priority event request");
         conflict.cancellationReason = revokeReason;
         conflict.reason = revokeReason; // Syncing for backward compatibility with status check UI
@@ -452,33 +452,33 @@ const updateRequestStatus = async (req, res) => {
 
         // Notify the originally approved faculty
         if (conflict.faculty) {
-           let conflictDateString = conflict.date;
-           if (typeof conflict.date.toISOString === "function") {
-               conflictDateString = conflict.date.toISOString().split("T")[0];
-           }
-           await emailService.sendStatusUpdateEmail(
-             conflict.faculty.email, 
-             conflict.faculty.name, 
-             "revoked", 
-             revokeReason, 
-             request.venue.name, 
-             conflictDateString,
-             conflict.timeSlot
-           );
+          let conflictDateString = conflict.date;
+          if (typeof conflict.date.toISOString === "function") {
+            conflictDateString = conflict.date.toISOString().split("T")[0];
+          }
+          await emailService.sendStatusUpdateEmail(
+            conflict.faculty.email,
+            conflict.faculty.name,
+            "revoked",
+            revokeReason,
+            request.venue.name,
+            conflictDateString,
+            conflict.timeSlot
+          );
         }
       }
     }
 
     request.status = status;
-    
+
     if (status === "revoked" || status === "rejected") {
-      const prefix = currentUser.role === "superadmin" 
-        ? `Your booking ${status} by head` 
+      const prefix = currentUser.role === "superadmin"
+        ? `Your booking ${status} by head`
         : `Your booking ${status} by HOD of department`;
       reason = reason ? `${prefix}. Reason: ${reason}` : prefix;
     } else if (status === "approved") {
-      reason = currentUser.role === "superadmin" 
-        ? "Approved by head" 
+      reason = currentUser.role === "superadmin"
+        ? "Approved by head"
         : "Approved by HOD of department";
     }
 
@@ -492,14 +492,14 @@ const updateRequestStatus = async (req, res) => {
       const venueName = request.venue ? request.venue.name : "Unknown Venue";
       let dateString = request.date;
       if (typeof request.date.toISOString === "function") {
-          dateString = request.date.toISOString().split("T")[0];
+        dateString = request.date.toISOString().split("T")[0];
       }
       await emailService.sendStatusUpdateEmail(
-        request.faculty.email, 
-        request.faculty.name, 
-        status, 
-        reason, 
-        venueName, 
+        request.faculty.email,
+        request.faculty.name,
+        status,
+        reason,
+        venueName,
         dateString,
         request.timeSlot
       );
@@ -529,7 +529,7 @@ const getDepartmentHistory = async (req, res) => {
 
     const start = new Date(startDate);
     start.setUTCHours(0, 0, 0, 0);
-    
+
     const end = new Date(endDate);
     end.setUTCHours(23, 59, 59, 999);
 
@@ -539,8 +539,8 @@ const getDepartmentHistory = async (req, res) => {
       status: { $in: ["approved", "completed"] },
       date: { $gte: start, $lte: end }
     })
-    .populate({ path: "faculty", populate: { path: "department" } })
-    .populate({ path: "venue", populate: { path: "department" } });
+      .populate({ path: "faculty", populate: { path: "department" } })
+      .populate({ path: "venue", populate: { path: "department" } });
 
     if (currentUser.role === 'superadmin') {
       const history = {};
@@ -548,14 +548,14 @@ const getDepartmentHistory = async (req, res) => {
         if (!b.faculty || !b.venue || !b.faculty.department || !b.venue.department) return;
         const facultyDeptId = b.faculty.department._id.toString();
         const venueDeptId = b.venue.department._id.toString();
-        
+
         const key = `${facultyDeptId}_${venueDeptId}`;
         if (!history[key]) {
-           history[key] = {
-             facultyDept: b.faculty.department.name,
-             venueDept: b.venue.department.name,
-             count: 0
-           };
+          history[key] = {
+            facultyDept: b.faculty.department.name,
+            venueDept: b.venue.department.name,
+            count: 0
+          };
         }
         history[key].count += 1;
       });
@@ -563,15 +563,15 @@ const getDepartmentHistory = async (req, res) => {
     } else if (currentUser.role === 'admin') {
       const history = {};
       const adminDeptId = currentUser.department?.toString();
-      
+
       bookings.forEach(b => {
         if (!b.faculty || !b.venue || !b.faculty.department || !b.venue.department) return;
-        
+
         const venueDeptId = b.venue.department._id.toString();
         if (venueDeptId !== adminDeptId) return; // Only my department venues
-        
+
         const facultyDeptId = b.faculty.department._id.toString();
-        
+
         const key = facultyDeptId;
         if (!history[key]) {
           history[key] = {
@@ -583,11 +583,11 @@ const getDepartmentHistory = async (req, res) => {
       });
       return res.status(200).json({ success: true, history: Object.values(history) });
     }
-    
+
     return res.status(403).json({ success: false });
-  } catch(error) {
-     console.log("HISTORY ERROR", error);
-     return res.status(500).json({ success: false, message: "Something went wrong" });
+  } catch (error) {
+    console.log("HISTORY ERROR", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
 
@@ -595,23 +595,23 @@ const updateBatchStatus = async (req, res) => {
   try {
     const { batchId } = req.params;
     let { status, reason, cancellationReason } = req.body;
-    
+
     const currentUser = await userModel.findById(req.user.userId);
-    
+
     let queryStatus = "pending";
     if (status === "revoked") queryStatus = "approved";
-    
+
     const requests = await bookingModel.find({ batchId, status: queryStatus }).populate("faculty", "name email").populate("venue", "name department");
-    
+
     if (requests.length === 0) return res.status(404).json({ success: false, message: "Batch requests not found" });
 
     let updatedCount = 0;
-    
+
     for (const request of requests) {
       if (currentUser.role === 'admin') {
         if (request.venue.department?.toString() !== currentUser.department?.toString()) continue; // Skip unauthorized
       }
-      
+
       if (status === "approved") {
         const conflict = await bookingModel.findOne({
           venue: request.venue._id,
@@ -625,33 +625,33 @@ const updateBatchStatus = async (req, res) => {
 
         if (conflict) {
           conflict.status = "revoked";
-          const revokeReason = cancellationReason || (currentUser.role === "superadmin" 
-            ? "Revoked by head due to a priority batch request" 
+          const revokeReason = cancellationReason || (currentUser.role === "superadmin"
+            ? "Revoked by head due to a priority batch request"
             : "Revoked by HOD due to a priority batch request");
           conflict.cancellationReason = revokeReason;
           conflict.reason = revokeReason;
           await conflict.save();
 
           if (conflict.faculty) {
-             let cDateStr = conflict.date;
-             if (typeof conflict.date.toISOString === "function") {
-                 cDateStr = conflict.date.toISOString().split("T")[0];
-             }
-             await emailService.sendStatusUpdateEmail(
-               conflict.faculty.email, 
-               conflict.faculty.name, 
-               "revoked", 
-               revokeReason, 
-               request.venue.name, 
-               cDateStr,
-               conflict.timeSlot
-             );
+            let cDateStr = conflict.date;
+            if (typeof conflict.date.toISOString === "function") {
+              cDateStr = conflict.date.toISOString().split("T")[0];
+            }
+            await emailService.sendStatusUpdateEmail(
+              conflict.faculty.email,
+              conflict.faculty.name,
+              "revoked",
+              revokeReason,
+              request.venue.name,
+              cDateStr,
+              conflict.timeSlot
+            );
           }
         }
       }
-      
+
       request.status = status;
-      
+
       const prefix = currentUser.role === "superadmin"
         ? `Your grouped booking ${status} by head`
         : `Your grouped booking ${status} by HOD of department`;
@@ -669,7 +669,7 @@ const updateBatchStatus = async (req, res) => {
       if (typeof firstReq.date.toISOString === "function") {
         dateString = firstReq.date.toISOString().split("T")[0];
       }
-      
+
       let finalReason = reason;
       if (status === "revoked" || status === "rejected") {
         const prefix = currentUser.role === "superadmin"
@@ -677,8 +677,8 @@ const updateBatchStatus = async (req, res) => {
           : `Your grouped booking ${status} by HOD of department`;
         finalReason = reason ? `${prefix}. Reason: ${reason}` : prefix;
       } else if (status === "approved") {
-        finalReason = currentUser.role === "superadmin" 
-          ? "Approved by head" 
+        finalReason = currentUser.role === "superadmin"
+          ? "Approved by head"
           : "Approved by HOD of department";
       }
 
@@ -692,11 +692,11 @@ const updateBatchStatus = async (req, res) => {
         firstReq.timeSlot
       );
     }
-    
-    return res.status(200).json({ success: true, message: `Batch ${status} processed. Updated ${updatedCount} items.`});
+
+    return res.status(200).json({ success: true, message: `Batch ${status} processed. Updated ${updatedCount} items.` });
   } catch (error) {
-     console.log("BATCH UPDATE ERROR", error);
-     return res.status(500).json({ success: false, message: "Something went wrong" });
+    console.log("BATCH UPDATE ERROR", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
   }
 };
 
@@ -704,9 +704,9 @@ const getAllHistoryStatement = async (req, res) => {
   try {
     const { departmentId, startDate, endDate } = req.query;
     const currentUser = await userModel.findById(req.user.userId);
-    
+
     let query = {};
-    
+
     if (startDate && endDate) {
       const start = new Date(startDate);
       start.setUTCHours(0, 0, 0, 0);
@@ -722,7 +722,7 @@ const getAllHistoryStatement = async (req, res) => {
       end.setUTCHours(23, 59, 59, 999);
       query.date = { $lte: end };
     }
-    
+
     let bookings = await bookingModel.find(query)
       .populate({
         path: "faculty",
@@ -747,13 +747,13 @@ const getAllHistoryStatement = async (req, res) => {
 
     // Dynamic status check
     const updatedBookings = await Promise.all(bookings.map(checkAndUpdateBookingStatus));
-    
+
     return res.status(200).json({
       success: true,
       count: updatedBookings.length,
       history: updatedBookings
     });
-    
+
   } catch (error) {
     console.log("HISTORY STATEMENT ERROR", error);
     return res.status(500).json({ success: false, message: "Something went wrong" });
@@ -765,7 +765,7 @@ const setupInitialBlocks = async (req, res) => {
     // 1. Create Blocks A, B, C, D if they don't exist
     const blockNames = ["Block A", "Block B", "Block C", "Block D"];
     const blocks = [];
-    
+
     for (const name of blockNames) {
       let b = await blockModel.findOne({ name });
       if (!b) {
@@ -777,15 +777,15 @@ const setupInitialBlocks = async (req, res) => {
     // 2. Distribute Departments
     const depts = await departmentModel.find();
     for (let i = 0; i < depts.length; i++) {
-       const blockIndex = i % 4; // Equal distribution
-       depts[i].block = blocks[blockIndex]._id;
-       await depts[i].save();
+      const blockIndex = i % 4; // Equal distribution
+      depts[i].block = blocks[blockIndex]._id;
+      await depts[i].save();
     }
 
-    return res.status(200).json({ 
-       success: true, 
-       message: "Initial blocks created and departments distributed successfully",
-       blocks: blocks.map(b => b.name)
+    return res.status(200).json({
+      success: true,
+      message: "Initial blocks created and departments distributed successfully",
+      blocks: blocks.map(b => b.name)
     });
   } catch (error) {
     console.log("SETUP BLOCKS ERROR", error);
@@ -793,7 +793,7 @@ const setupInitialBlocks = async (req, res) => {
   }
 };
 
-module.exports = { 
+module.exports = {
   registerFaculty,
   createBlock,
   updateBlock,
