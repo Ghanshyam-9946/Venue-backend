@@ -159,8 +159,11 @@ const createBooking = async(req,res)=>{
             const venueId = vdc.venue._id;
             const d = vdc.date;
             
+            const userDeptId = req.user.department?._id || req.user.department;
+            const venueDeptId = vdc.venue.department;
+
             const isAdminOfThisVenue = req.user.role === "admin" && 
-                                       vdc.venue.department?.toString() === req.user.department?.toString();
+                                       venueDeptId?.toString() === userDeptId?.toString();
             const isSuperAdmin = req.user.role === "superadmin";
             
             const shouldAutoApproveThis = (isAdminOfThisVenue || isSuperAdmin) && !vdc.isConflict;
