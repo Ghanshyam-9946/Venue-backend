@@ -460,10 +460,88 @@ const getPublicVenues = async (req, res) => {
     }
 };
 
+const cancelBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cancelBatch } = req.body;
+
+    const booking = await bookingModel.findById(id).populate("venue").populate("faculty");
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Check if user is the owner
+    if (booking.faculty._id.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to cancel this booking" });
+    }
+
+    // Check if booking is already completed or cancelled
+    if (["completed", "cancelled", "rejected", "revoked"].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: `Booking cannot be cancelled from its current status: ${booking.status}` });
+    }
+
+    const bookingsToCancel = [];
+    if (cancelBatch && booking.batchId) {
+      const batchBookings = await bookingModel.find({ batchId: booking.batchId, status: { $in: ["pending", "approved"] } }).populate("venue").populate("faculty");
+      bookingsToCancel.push(...batchBookings);
+    } else {
+      bookingsToCancel.push(booking);
+    }
+
+    if (bookingsToCancel.length === 0) {
+      return res.status(400).json({ success: false, message: "No eligible bookings found to cancel" });
+    }
+
+    // Update status for all
+    for (const b of bookingsToCancel) {
+      b.status = "cancelled";
+      await b.save();
+    }
+
+    // Prepare notification details
+    const faculty = booking.faculty;
+    const venueNames = [...new Set(bookingsToCancel.map(b => b.venue.name))].join(", ");
+    const dateStrings = [...new Set(bookingsToCancel.map(b => new Date(b.date).toDateString()))].join(", ");
+    const timeSlots = [...new Set(bookingsToCancel.map(b => b.timeSlot))].join(", ");
+
+    // Fetch relevant admins (similar to createBooking)
+    const venueDeptIds = [...new Set(bookingsToCancel.map(b => b.venue.department?.toString()))].filter(Boolean);
+    const requesterDept = faculty.department;
+
+    const adminQuery = {
+      $or: [
+        { role: "superadmin" },
+        { role: "admin", department: { $in: venueDeptIds } },
+        requesterDept ? { role: "admin", department: requesterDept } : null
+      ].filter(Boolean)
+    };
+
+    const admins = await userModel.find(adminQuery).select("email");
+    const adminEmails = admins.map(a => a.email);
+
+    // Send emails
+    await emailService.sendCancellationEmail(faculty.email, faculty.name, venueNames, dateStrings, timeSlots);
+    
+    if (adminEmails.length > 0) {
+      await emailService.sendCancellationAdminNotification(adminEmails, faculty.name, venueNames, dateStrings, timeSlots);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: bookingsToCancel.length > 1 ? "Bookings in this batch cancelled successfully" : "Booking cancelled successfully"
+    });
+
+  } catch (error) {
+    console.log("CANCEL BOOKING ERROR:", error);
+    return res.status(500).json({ success: false, message: "Something went wrong" });
+  }
+};
+
 module.exports = {
     createBooking,
     getMyBookings,
     getBookedSlots,
     getWeeklySchedule,
-    getPublicVenues
+    getPublicVenues,
+    cancelBooking
 };

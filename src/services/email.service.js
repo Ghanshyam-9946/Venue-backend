@@ -389,6 +389,86 @@ async function sendPriorityBookingAdminNotification(adminEmails, facultyName, pr
   }
 }
 
+// Cancellation Email (Faculty)
+async function sendCancellationEmail(email, name, venueName, date, timeSlot) {
+  try {
+    console.log("📨 Sending cancellation confirmation email to:", email);
+
+    const info = await transporter.sendMail({
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: "Booking Cancelled Successfully",
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #6b7280; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: #f3f4f6; padding: 20px; border-bottom: 2px solid #e5e7eb;">
+            <h2 style="color: #374151; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">
+              ✅ CANCELLATION CONFIRMED
+            </h2>
+          </div>
+          <div style="padding: 24px; background: white;">
+            <p style="color: #1f2937; font-size: 16px; font-weight: 500;">Hello ${name},</p>
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">
+              Your booking for <strong>${venueName}</strong> on <strong>${date}</strong> (${timeSlot}) has been <strong>CANCELLED</strong> as per your request.
+            </p>
+            
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 5px solid #6b7280; margin: 20px 0;">
+              <p style="margin: 0; color: #4b5563; font-size: 14px;">The venue has been released and is now available for others to book.</p>
+            </div>
+
+            <p style="color: #6b7280; font-size: 13px; margin-top: 20px;">
+              If this was a mistake, please visit the portal to create a new booking.
+            </p>
+
+            <div style="margin-top: 30px; border-top: 1px solid #f3f4f6; padding-top: 20px; text-align: center;">
+              <p style="font-size: 14px; font-weight: bold; color: #1e3a8a; margin: 0;">Sistec Event Organizer</p>
+            </div>
+          </div>
+        </div>
+      `
+    });
+
+    console.log(" Cancellation Email sent:", info.messageId);
+    return true;
+  } catch (err) {
+    console.error(" Cancellation Email error:", err.message);
+    return false;
+  }
+}
+
+// Cancellation Notification (Admins)
+async function sendCancellationAdminNotification(adminEmails, facultyName, venueName, date, timeSlot) {
+  try {
+    if (!adminEmails || adminEmails.length === 0) return;
+
+    console.log("📨 Sending cancellation admin notification for:", venueName);
+
+    const info = await transporter.sendMail({
+      from: `"Sistec Event Organizer" <${process.env.SMTP_USER}>`,
+      to: adminEmails.join(','),
+      subject: `[CANCELLED] ${venueName} - ${facultyName}`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #dc2626;">Booking Cancelled</h2>
+          <p>Faculty <strong>${facultyName}</strong> has cancelled their booking:</p>
+          <div style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px solid #fee2e2; margin: 15px 0;">
+            <p style="margin: 5px 0;"><strong>Venue:</strong> ${venueName}</p>
+            <p style="margin: 5px 0;"><strong>Date:</strong> ${date}</p>
+            <p style="margin: 5px 0;"><strong>Time Slot:</strong> ${timeSlot}</p>
+          </div>
+          <p>The resources have been automatically released.</p>
+          <p>Regards,<br><strong>Sistec event organizer</strong></p>
+        </div>
+      `
+    });
+
+    console.log("Admin Cancellation Notification sent:", info.messageId);
+    return true;
+  } catch (err) {
+    console.error(" Admin Cancellation Email error:", err.message);
+    return false;
+  }
+}
+
 // OTP Email
 async function sendOTPEmail(email, otp) {
   try {
@@ -423,5 +503,7 @@ module.exports = {
   sendStatusUpdateEmail,
   sendNewBookingAdminNotification,
   sendPriorityBookingAdminNotification,
+  sendCancellationEmail,
+  sendCancellationAdminNotification,
   sendOTPEmail
 }

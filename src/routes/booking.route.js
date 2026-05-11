@@ -2,10 +2,11 @@ const express = require("express");
 const router = express.Router();
 
 
-const { createBooking , getMyBookings, getBookedSlots, getWeeklySchedule, getPublicVenues } = require("../controllers/booking.controller.js");
+const { createBooking , getMyBookings, getBookedSlots, getWeeklySchedule, getPublicVenues, cancelBooking } = require("../controllers/booking.controller.js");
 const { authMiddleware } = require("../middleware/auth.middleware");
 
 router.post("/create", authMiddleware, createBooking);
+router.post("/cancel/:id", authMiddleware, cancelBooking);
 
 router.get("/my", authMiddleware, getMyBookings);
 
